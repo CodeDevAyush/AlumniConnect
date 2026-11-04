@@ -8,3 +8,4 @@ import { AnnouncementsService } from './announcements.service';
   exports: [AnnouncementsService],
 })
 export class AnnouncementsModule {}
+

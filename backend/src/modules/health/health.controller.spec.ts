@@ -37,3 +37,4 @@ describe('HealthController', () => {
     expect(res.database).toBe('disconnected');
   });
 });
+

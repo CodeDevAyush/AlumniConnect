@@ -19,3 +19,4 @@ describe('Button Component', () => {
     expect(screen.getByRole('button', { name: /disabled/i })).toBeDisabled();
   });
 });
+
