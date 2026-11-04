@@ -1,0 +1,43 @@
+version: '3.8'
+
+# Docker Compose configuration optimized for local live development
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+      - /app/node_modules
+    command: npm run start:dev
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./ai-service/app:/app/app
+      - ./ai-service/tests:/app/tests
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend/app:/app/app
+      - ./frontend/components:/app/components
+      - ./frontend/features:/app/features
+      - ./frontend/lib:/app/lib
+      - ./frontend/hooks:/app/hooks
+      - ./frontend/services:/app/services
+      - ./frontend/types:/app/types
+      - ./frontend/utils:/app/utils
+      - ./frontend/public:/app/public
+      - ./frontend/styles:/app/styles
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev

@@ -1,0 +1,87 @@
+export type UserRole = "STUDENT" | "ALUMNI" | "FACULTY" | "ADMIN";
+
+export type AccountStatus = "PENDING_VERIFICATION" | "ACTIVE" | "SUSPENDED" | "DEACTIVATED";
+
+export type VerificationStatus = "PENDING" | "UNDER_REVIEW" | "APPROVED" | "REJECTED";
+
+export interface User {
+  id: string;
+  email: string;
+  role: UserRole;
+  status: AccountStatus;
+  isEmailVerified: boolean;
+  createdAt: string;
+  profile?: Profile;
+}
+
+export interface Profile {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  headline?: string;
+  bio?: string;
+  avatarUrl?: string;
+  location?: string;
+  department?: string;
+  degree?: string;
+  graduationYear?: number;
+  skills: string[];
+  interests: string[];
+  linkedinUrl?: string;
+  githubUrl?: string;
+  portfolioUrl?: string;
+  alumniProfile?: AlumniProfile;
+  studentProfile?: StudentProfile;
+}
+
+export interface AlumniProfile {
+  id: string;
+  currentCompany?: string;
+  currentTitle?: string;
+  industry?: string;
+  yearsOfExperience?: number;
+  willingToMentor: boolean;
+  willingToRefer: boolean;
+  maxMentees: number;
+  officeLocation?: string;
+}
+
+export interface StudentProfile {
+  id: string;
+  studentIdNumber?: string;
+  expectedGraduationYear?: number;
+  currentSemester?: number;
+  targetRoles: string[];
+  targetCompanies: string[];
+  resumeUrl?: string;
+  githubUsername?: string;
+}
+
+export interface Opportunity {
+  id: string;
+  title: string;
+  company: string;
+  location?: string;
+  type: "FULL_TIME" | "INTERNSHIP" | "PART_TIME" | "RESEARCH" | "FREELANCE" | "REFERRAL";
+  description: string;
+  requirements: string[];
+  applyUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  author?: {
+    profile?: Profile;
+  };
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  statusCode: number;
+  message?: string;
+  data: T;
+  meta: {
+    timestamp: string;
+    path: string;
+    version: string;
+  };
+}

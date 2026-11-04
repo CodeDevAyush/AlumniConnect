@@ -1,0 +1,300 @@
+// =============================================================================
+// AlumniConnect Prisma Schema Definition
+// Database: PostgreSQL
+// Conventions:
+//   - IDs: UUID v4 (@default(uuid()))
+//   - Timestamps: createdAt, updatedAt (UTC)
+//   - Soft Deletes: deletedAt DateTime? where applicable
+//   - Relations: Explicit foreign keys with appropriate referential actions
+//   - Indexes: Configured for common query paths (auth, search, foreign keys)
+// =============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -----------------------------------------------------------------------------
+// ENUMS
+// -----------------------------------------------------------------------------
+
+enum UserRole {
+  STUDENT
+  ALUMNI
+  FACULTY
+  ADMIN
+}
+
+enum AccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum VerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum MentorshipStatus {
+  REQUESTED
+  ACCEPTED
+  ACTIVE
+  COMPLETED
+  DECLINED
+  CANCELLED
+}
+
+enum OpportunityType {
+  FULL_TIME
+  INTERNSHIP
+  PART_TIME
+  RESEARCH
+  FREELANCE
+  REFERRAL
+}
+
+// -----------------------------------------------------------------------------
+// MODELS
+// -----------------------------------------------------------------------------
+
+/// Core user authentication and identity entity
+model User {
+  id                   String           @id @default(uuid())
+  email                String           @unique
+  passwordHash         String
+  role                 UserRole         @default(STUDENT)
+  status               AccountStatus    @default(PENDING_VERIFICATION)
+  isEmailVerified      Boolean          @default(false)
+  emailVerificationToken String?
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  lastLoginAt          DateTime?
+  deletedAt            DateTime?
+
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  // 1:1 Profile relation
+  profile              Profile?
+
+  // Relations
+  verificationRequests VerificationRequest[]
+  connectionsSent      Connection[]     @relation("RequesterConnections")
+  connectionsReceived  Connection[]     @relation("ReceiverConnections")
+  mentorshipsRequested MentorshipRequest[] @relation("StudentMentorships")
+  mentorshipsOffered   MentorshipRequest[] @relation("AlumniMentorships")
+  opportunitiesPosted  Opportunity[]    @relation("PostedOpportunities")
+  auditLogs            AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+/// User profile details
+model Profile {
+  id              String          @id @default(uuid())
+  userId          String          @unique
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firstName       String
+  lastName        String
+  headline        String?
+  bio             String?         @db.Text
+  avatarUrl       String?
+  location        String?
+  department      String?
+  degree          String?
+  graduationYear  Int?
+  skills          String[]        @default([])
+  interests       String[]        @default([])
+  linkedinUrl     String?
+  githubUrl       String?
+  portfolioUrl    String?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Role-specific extensions
+  alumniProfile   AlumniProfile?
+  studentProfile  StudentProfile?
+
+  @@index([userId])
+  @@index([graduationYear])
+  @@index([department])
+  @@map("profiles")
+}
+
+/// Specialized profile for Alumni members
+model AlumniProfile {
+  id                    String        @id @default(uuid())
+  profileId             String        @unique
+  profile               Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  currentCompany        String?
+  currentTitle          String?
+  industry              String?
+  yearsOfExperience     Int?          @default(0)
+  willingToMentor       Boolean       @default(true)
+  willingToRefer        Boolean       @default(true)
+  maxMentees            Int           @default(3)
+  preferredContactMethod String?
+  officeLocation        String?
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([profileId])
+  @@index([currentCompany])
+  @@index([industry])
+  @@index([willingToMentor])
+  @@map("alumni_profiles")
+}
+
+/// Specialized profile for Student members
+model StudentProfile {
+  id                    String        @id @default(uuid())
+  profileId             String        @unique
+  profile               Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  studentIdNumber       String?       @unique
+  expectedGraduationYear Int?
+  currentSemester       Int?
+  targetRoles           String[]      @default([])
+  targetCompanies       String[]      @default([])
+  resumeUrl             String?
+  githubUsername        String?
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([profileId])
+  @@index([expectedGraduationYear])
+  @@map("student_profiles")
+}
+
+/// Official identity and degree verification requests
+model VerificationRequest {
+  id              String              @id @default(uuid())
+  userId          String
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  documentType    String
+  documentUrl     String
+  status          VerificationStatus  @default(PENDING)
+  rejectionReason String?
+  reviewerId      String?
+  reviewedAt      DateTime?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("verification_requests")
+}
+
+/// Peer-to-peer connection graph between platform members
+model Connection {
+  id           String            @id @default(uuid())
+  requesterId  String
+  requester    User              @relation("RequesterConnections", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiverId   String
+  receiver     User              @relation("ReceiverConnections", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  status       ConnectionStatus  @default(PENDING)
+  note         String?
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([requesterId, receiverId])
+  @@index([requesterId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("connections")
+}
+
+/// Structured mentorship requests between students and alumni
+model MentorshipRequest {
+  id          String            @id @default(uuid())
+  studentId   String
+  student     User              @relation("StudentMentorships", fields: [studentId], references: [id], onDelete: Cascade)
+  alumniId    String
+  alumni      User              @relation("AlumniMentorships", fields: [alumniId], references: [id], onDelete: Cascade)
+
+  status      MentorshipStatus  @default(REQUESTED)
+  goals       String            @db.Text
+  duration    String?
+  notes       String?           @db.Text
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([studentId])
+  @@index([alumniId])
+  @@index([status])
+  @@map("mentorship_requests")
+}
+
+/// Opportunities and jobs posted by verified alumni or administrators
+model Opportunity {
+  id          String            @id @default(uuid())
+  authorId    String
+  author      User              @relation("PostedOpportunities", fields: [authorId], references: [id], onDelete: Cascade)
+
+  title       String
+  company     String
+  location    String?
+  type        OpportunityType   @default(FULL_TIME)
+  description String            @db.Text
+  requirements String[]         @default([])
+  applyUrl    String?
+  isActive    Boolean           @default(true)
+  expiresAt   DateTime?
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([authorId])
+  @@index([type])
+  @@index([isActive])
+  @@map("opportunities")
+}
+
+/// Security audit logs for compliance, security tracking, and administrative review
+model AuditLog {
+  id         String    @id @default(uuid())
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

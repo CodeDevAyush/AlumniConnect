@@ -1,0 +1,79 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: alumni_admin
+          POSTGRES_PASSWORD: alumni_secure_password_dev
+          POSTGRES_DB: alumniconnect_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://alumni_admin:alumni_secure_password_dev@localhost:5432/alumniconnect_test_db?schema=public
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Unit Tests
+        run: npm run test -- --passWithNoTests
+        env:
+          DATABASE_URL: postgresql://alumni_admin:alumni_secure_password_dev@localhost:5432/alumniconnect_test_db?schema=public
+          JWT_ACCESS_SECRET: dev_jwt_access_secret_change_in_production_min_32_bytes_long
+          JWT_REFRESH_SECRET: dev_jwt_refresh_secret_change_in_production_min_32_bytes_long
+          INTERNAL_API_SECRET_KEY: dev_internal_shared_secret_between_backend_and_ai_service_32b
+
+      - name: Build Application
+        run: npm run build

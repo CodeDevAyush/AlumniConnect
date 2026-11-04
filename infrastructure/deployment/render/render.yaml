@@ -1,0 +1,58 @@
+# Render Blueprint Spec for AlumniConnect Main Backend & AI Service
+services:
+  # 1. Main Backend (NestJS)
+  - type: web
+    name: alumniconnect-backend
+    env: node
+    plan: standard
+    buildCommand: cd backend && npm install && npx prisma generate && npm run build
+    startCommand: cd backend && npx prisma migrate deploy && npm run start:prod
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alumniconnect-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: alumniconnect-redis
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: INTERNAL_API_SECRET_KEY
+        generateValue: true
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: alumniconnect-ai-service
+          property: host
+
+  # 2. AI / ML Service (FastAPI)
+  - type: web
+    name: alumniconnect-ai-service
+    env: python
+    plan: standard
+    buildCommand: cd ai-service && pip install -r requirements.txt
+    startCommand: cd ai-service && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: INTERNAL_API_SECRET_KEY
+        fromService:
+          type: web
+          name: alumniconnect-backend
+          envVarKey: INTERNAL_API_SECRET_KEY
+
+databases:
+  - name: alumniconnect-postgres
+    plan: standard
+    databaseName: alumniconnect_db
+    user: alumni_admin
