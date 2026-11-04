@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
-from app.integrations.github_client import github_client
 from app.core.security import verify_internal_api_key
+from app.services.github_analysis_service import github_analysis_service
 
 router = APIRouter()
 
@@ -10,9 +10,10 @@ router = APIRouter()
     dependencies=[Depends(verify_internal_api_key)],
     tags=["GitHub Integration"],
 )
-async def evaluate_github(username: str):
+async def evaluate_github_user(username: str):
     """
-    Retrieves and aggregates signals directly from GitHub user account.
+    Performs deep analysis of a student's public repositories, commit cadence,
+    language breakdown, and engineering hygiene (tests, Docker, CI/CD, docs).
     Requires internal service authentication.
     """
-    return await github_client.evaluate_github_profile(username)
+    return await github_analysis_service.analyze_student_github(username)

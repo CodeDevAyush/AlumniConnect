@@ -99,6 +99,7 @@ model User {
   mentorshipsRequested MentorshipRequest[] @relation("StudentMentorships")
   mentorshipsOffered   MentorshipRequest[] @relation("AlumniMentorships")
   opportunitiesPosted  Opportunity[]    @relation("PostedOpportunities")
+  capabilityAssessments CapabilityAssessment[]
   auditLogs            AuditLog[]
 
   @@index([email])
@@ -276,6 +277,30 @@ model Opportunity {
   @@index([type])
   @@index([isActive])
   @@map("opportunities")
+}
+
+/// Historical Student Technical Capability Assessments
+model CapabilityAssessment {
+  id                     String    @id @default(uuid())
+  studentId              String
+  student                User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  track                  String
+  overallScore           Float
+  readinessTier          String
+  overallConfidence      String
+  dimensionScores        Json
+  missingEvidenceNotices String[]  @default([])
+  strengths              String[]  @default([])
+  improvementAreas       String[]  @default([])
+  assessmentVersion      String    @default("v1.0.0")
+
+  createdAt              DateTime  @default(now())
+
+  @@index([studentId])
+  @@index([track])
+  @@index([createdAt])
+  @@map("capability_assessments")
 }
 
 /// Security audit logs for compliance, security tracking, and administrative review

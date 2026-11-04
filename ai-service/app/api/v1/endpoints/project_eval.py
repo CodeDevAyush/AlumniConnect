@@ -1,37 +1,25 @@
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-from typing import List, Optional
 from app.core.security import verify_internal_api_key
+from app.schemas.project_eval import (
+    ProjectEvaluationResult,
+    ProjectSubmissionRequest,
+)
+from app.services.project_evaluation_service import project_evaluation_service
 
 router = APIRouter()
 
 
-class ProjectEvalRequest(BaseModel):
-    title: str
-    description: str
-    techStack: List[str]
-    liveUrl: Optional[str] = None
-    repoUrl: Optional[str] = None
-
-
 @router.post(
     "/projects/evaluate",
+    response_model=ProjectEvaluationResult,
     dependencies=[Depends(verify_internal_api_key)],
     tags=["Project Evaluation"],
 )
-async def evaluate_project(payload: ProjectEvalRequest):
+async def evaluate_project_submission(request: ProjectSubmissionRequest):
     """
-    Evaluates student capstone project complexity, architecture maturity, and relevance.
+    Evaluates project submissions across multi-criteria rubrics (modularity,
+    tech stack depth, test evidence, documentation, deployment) and provides
+    Gemini-powered qualitative architectural feedback.
     Requires internal service authentication.
     """
-    complexity_score = min(len(payload.techStack) * 15.0 + 35.0, 95.0)
-    return {
-        "title": payload.title,
-        "complexityScore": complexity_score,
-        "productionReadinessTier": "Production Quality" if complexity_score > 75 else "Prototype",
-        "verifiedStack": payload.techStack,
-        "recommendations": [
-            "Add CI/CD pipeline automation with lint and test verification",
-            "Document system architecture diagram in repository README",
-        ],
-    }
+    return await project_evaluation_service.evaluate_project(request)

@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends
-from app.schemas.matching import AlumniMatchRequest, AlumniMatchResponse
-from app.services.matching_service import matching_service
 from app.core.security import verify_internal_api_key
+from app.schemas.matching import (
+    AlumniMatchRequest,
+    AlumniMatchResponse,
+)
+from app.services.matching_engine import matching_engine
 
 router = APIRouter()
 
@@ -14,8 +17,8 @@ router = APIRouter()
 )
 async def match_alumni(request: AlumniMatchRequest):
     """
-    Computes TF-IDF vector similarity and semantic overlap between
-    student target profiles and alumni candidates.
+    Computes explainable multi-factor matches between student profile and verified alumni
+    using TF-IDF semantic vector similarity, track alignment, and referral willingness.
     Requires internal service authentication.
     """
-    return matching_service.match_alumni(request)
+    return matching_engine.match(request)

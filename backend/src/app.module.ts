@@ -12,6 +12,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 // Modules
 import { HealthModule } from './modules/health/health.module';
 import { AiClientModule } from './modules/ai-client/ai-client.module';
+import { IntelligenceModule } from './modules/intelligence/intelligence.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ProfilesModule } from './modules/profiles/profiles.module';
@@ -40,6 +41,7 @@ import { AdminModule } from './modules/admin/admin.module';
     DatabaseModule,
     HealthModule,
     AiClientModule,
+    IntelligenceModule,
     AuthModule,
     UsersModule,
     ProfilesModule,

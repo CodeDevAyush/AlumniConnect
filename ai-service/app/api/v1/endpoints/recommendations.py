@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
+from app.core.security import verify_internal_api_key
 from app.schemas.recommendations import (
     CareerRecommendationRequest,
     CareerRecommendationResponse,
 )
-from app.services.recommendation_service import recommendation_service
-from app.core.security import verify_internal_api_key
+from app.services.career_guidance_engine import career_guidance_engine
 
 router = APIRouter()
 
@@ -13,11 +13,12 @@ router = APIRouter()
     "/recommendations/career",
     response_model=CareerRecommendationResponse,
     dependencies=[Depends(verify_internal_api_key)],
-    tags=["Career Recommendations"],
+    tags=["Career Guidance"],
 )
-async def get_career_recommendations(request: CareerRecommendationRequest):
+async def get_career_guidance(request: CareerRecommendationRequest):
     """
-    Synthesizes current skill competencies into an actionable phased career milestone pathway.
+    Generates personalized milestone roadmaps, recommended projects,
+    and mock interview priorities grounded in student evidence.
     Requires internal service authentication.
     """
-    return recommendation_service.generate_recommendations(request)
+    return await career_guidance_engine.generate_guidance(request)

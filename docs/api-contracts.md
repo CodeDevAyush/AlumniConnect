@@ -19,60 +19,46 @@
 }
 ```
 
-- **Error Enveloping**:
-```json
-{
-  "success": false,
-  "statusCode": 400,
-  "path": "/api/v1/auth/login",
-  "timestamp": "2026-11-04T22:00:00.000Z",
-  "message": "Validation failed",
-  "error": ["email must be an email"]
-}
-```
+---
+
+## 2. Interactive Documentation Interfaces
+
+- **NestJS Core Gateway**: `http://localhost:4000/api/docs`
+- **FastAPI AI Intelligence Subsystem**: `http://localhost:8000/api/v1/docs`
 
 ---
 
-## 2. Interactive Swagger / OpenAPI Documentation
+## 3. NestJS Intelligence Endpoints (`/api/v1/intelligence`)
 
-- **NestJS Core API**: `http://localhost:4000/api/docs`
-- **FastAPI AI Service**: `http://localhost:8000/api/v1/docs`
-
----
-
-## 3. Core API Endpoint Catalog
-
-### 3.1. Main Backend (`backend/`)
-
-| Method | Endpoint | Description | Auth Required |
+| Method | Endpoint | Description | Auth |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/health` | System health check probe | None |
-| `POST`| `/api/v1/auth/login` | Authenticate user credentials | None |
-| `POST`| `/api/v1/auth/register`| Register student or alumni account | None |
-| `GET` | `/api/v1/users/:id` | Fetch user account details | Bearer JWT |
-| `GET` | `/api/v1/profiles/:userId` | Fetch user profile & role extensions | Bearer JWT |
-| `GET` | `/api/v1/discovery/alumni` | Search alumni directory | Bearer JWT |
-| `GET` | `/api/v1/connections/user/:id` | List verified connections | Bearer JWT |
-| `GET` | `/api/v1/mentorship/requests/:id` | List mentorship requests | Bearer JWT |
-| `GET` | `/api/v1/referrals/alumni` | Search alumni willing to refer | Bearer JWT |
-| `GET` | `/api/v1/opportunities` | List active job & internship listings | Bearer JWT |
-| `GET` | `/api/v1/admin/stats` | Platform statistics | Admin Role |
+| `GET` | `/api/v1/intelligence/capability/tracks` | Lists 8 supported technical tracks & weights | None |
+| `POST` | `/api/v1/intelligence/capability/assess/:userId` | Runs 5-dimensional capability assessment | Bearer JWT |
+| `POST` | `/api/v1/intelligence/skills/gap-analysis/:userId` | Compares JD text against student capability | Bearer JWT |
+| `POST` | `/api/v1/intelligence/coding/analyze/:userId` | Analyzes LeetCode & Codeforces handles | Bearer JWT |
+| `POST` | `/api/v1/intelligence/projects/evaluate` | Evaluates project submission against rubrics | Bearer JWT |
+| `POST` | `/api/v1/intelligence/recommendations/career/:userId` | Generates personalized milestone roadmap | Bearer JWT |
+| `POST` | `/api/v1/intelligence/alumni-match/:userId` | Matches student with alumni mentors & referrers | Bearer JWT |
 
-### 3.2. AI/ML Service (`ai-service/`)
+---
 
-| Method | Endpoint | Description | Auth Required |
+## 4. FastAPI Intelligence Engine Endpoints (`/api/v1`)
+
+| Method | Endpoint | Description | Header Required |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/health` | Health & model status probe | None |
-| `POST`| `/api/v1/matching/alumni` | TF-IDF / Cosine Similarity alumni matching | `X-Internal-API-Key` |
-| `POST`| `/api/v1/skills/gap-analysis` | Skill-gap assessment against role benchmarks | `X-Internal-API-Key` |
-| `POST`| `/api/v1/capability/assess` | Multi-category capability score breakdown | `X-Internal-API-Key` |
-| `POST`| `/api/v1/coding/github-analysis`| Automated code hygiene & testing review | `X-Internal-API-Key` |
-| `GET` | `/api/v1/github/evaluate/{user}`| Direct GitHub language & activity aggregation | `X-Internal-API-Key` |
-| `POST`| `/api/v1/projects/evaluate` | Technical complexity evaluation | `X-Internal-API-Key` |
-| `POST`| `/api/v1/recommendations/career`| Phased milestone career recommendations | `X-Internal-API-Key` |
+| `GET` | `/api/v1/capability/tracks` | Returns 8 technical track definitions | `X-Internal-API-Key` |
+| `POST` | `/api/v1/capability/assess` | 5-Dimensional capability evaluation | `X-Internal-API-Key` |
+| `POST` | `/api/v1/skills/gap-analysis` | JD parsing & skill gap roadmap | `X-Internal-API-Key` |
+| `POST` | `/api/v1/skills/extract-jd` | Gemini LLM JD skill extraction | `X-Internal-API-Key` |
+| `POST` | `/api/v1/coding/analyze` | Codeforces + LeetCode performance metrics | `X-Internal-API-Key` |
+| `GET` | `/api/v1/github/evaluate/{username}` | GitHub repository hygiene & commit metrics | `X-Internal-API-Key` |
+| `POST` | `/api/v1/projects/evaluate` | Multi-criteria project evaluation rubric | `X-Internal-API-Key` |
+| `POST` | `/api/v1/matching/alumni` | Multi-factor TF-IDF alumni matching | `X-Internal-API-Key` |
+| `POST` | `/api/v1/recommendations/career` | Evidence-grounded career guidance | `X-Internal-API-Key` |
 
 ---
 
-## 4. Internal Service Authentication
+## 5. Security & Internal API Authentication
 
-Requests from NestJS to FastAPI MUST include the `X-Internal-API-Key` HTTP header. The secret is shared securely via environment configuration and never sent to or visible in client browsers.
+All calls from NestJS to FastAPI MUST pass the `X-Internal-API-Key` header matching `INTERNAL_API_SECRET_KEY`. Requests without this key are rejected with HTTP 401. Credentials are never sent to client browsers.
