@@ -131,3 +131,4 @@ class GeminiClient:
 
 
 gemini_client = GeminiClient()
+

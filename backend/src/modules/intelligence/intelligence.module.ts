@@ -10,3 +10,4 @@ import { AiClientModule } from '../ai-client/ai-client.module';
   exports: [IntelligenceService],
 })
 export class IntelligenceModule {}
+

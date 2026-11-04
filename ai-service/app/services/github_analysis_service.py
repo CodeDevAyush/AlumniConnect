@@ -50,3 +50,4 @@ class GitHubAnalysisService:
 
 
 github_analysis_service = GitHubAnalysisService()
+

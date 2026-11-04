@@ -28,3 +28,4 @@ class ProjectEvaluationResult(BaseModel):
     hygieneStrengths: List[str]
     architecturalRecommendations: List[str]
     qualitativeFeedback: str
+

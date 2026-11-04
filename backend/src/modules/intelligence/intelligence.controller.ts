@@ -70,3 +70,4 @@ export class IntelligenceController {
     return this.intelligenceService.matchAlumni(userId, body);
   }
 }
+

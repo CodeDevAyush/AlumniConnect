@@ -26,3 +26,4 @@ class CombinedCodingAnalysisResult(BaseModel):
     platformsAnalyzed: List[PlatformPerformanceMetric]
     keyStrengths: List[str]
     recommendedTopics: List[str]
+

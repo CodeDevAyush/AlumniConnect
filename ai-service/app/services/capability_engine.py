@@ -253,3 +253,4 @@ class CapabilityAssessmentEngine:
 
 
 capability_engine = CapabilityAssessmentEngine()
+
