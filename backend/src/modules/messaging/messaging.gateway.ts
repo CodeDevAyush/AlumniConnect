@@ -19,7 +19,7 @@ import { MessagingService } from './messaging.service';
 })
 export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private readonly logger = new Logger(MessagingGateway.name);
 

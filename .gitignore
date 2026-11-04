@@ -92,3 +92,5 @@ docker-compose.override.yml
 # Temporary test / coverage artifacts
 coverage/
 .nyc_output/
+.test_logs/
+uvicorn.log

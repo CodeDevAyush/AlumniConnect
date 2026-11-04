@@ -3,7 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
-import compression from 'compression';
+import * as compression from 'compression';
 
 import { AppModule } from './app.module';
 
@@ -62,8 +62,8 @@ async function bootstrap() {
   });
 
   await app.listen(port);
-  logger.log(`🚀 AlumniConnect Backend running on port ${port} with prefix /${apiPrefix}`);
-  logger.log(`📚 Swagger documentation available at http://localhost:${port}/api/docs`);
+  logger.log(`AlumniConnect Backend running on port ${port} with prefix /${apiPrefix}`);
+  logger.log(`Swagger documentation available at http://localhost:${port}/api/docs`);
 }
 
 bootstrap();
