@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   InMemoryPrototypeStore,
   PrototypeCommunityPost,
@@ -7,7 +7,7 @@ import {
 export interface CreateCommunityPostDto {
   title: string;
   content: string;
-  category?: 'MENTOR_UPDATE' | 'TECH_INSIGHT' | 'REFERRAL' | 'EVENT';
+  category?: 'MENTOR_UPDATE' | 'TECH_INSIGHT' | 'REFERRAL' | 'STUDENT_UPDATE' | 'EVENT';
   authorName?: string;
   authorRole?: string;
   authorCompany?: string;
@@ -27,21 +27,21 @@ export class AnnouncementsService {
     dto: CreateCommunityPostDto,
     fallbackUser?: { name?: string; role?: string },
   ): Promise<PrototypeCommunityPost> {
-    const role = (dto.userRole || fallbackUser?.role || dto.authorRole || '').toUpperCase();
-    if (role === 'STUDENT') {
-      throw new ForbiddenException(
-        'Only verified alumni and mentors can publish updates to the community feed. Students can read and interact with posts.',
-      );
-    }
+    const isStudent =
+      (dto.userRole || fallbackUser?.role || dto.authorRole || '').toUpperCase() === 'STUDENT';
+
+    const defaultRole = isStudent ? 'Student Candidate' : 'Senior Alumni Mentor';
+    const defaultCategory = isStudent ? 'STUDENT_UPDATE' : 'MENTOR_UPDATE';
+    const defaultCompany = isStudent ? 'Campus Student' : 'Alumni Network';
 
     return this.prototypeStore.addCommunityPost({
       title: dto.title,
       content: dto.content,
-      category: dto.category || 'MENTOR_UPDATE',
-      authorName: dto.authorName || fallbackUser?.name || 'Verified Mentor',
-      authorRole: dto.authorRole || fallbackUser?.role || 'Senior Alumni Mentor',
-      authorCompany: dto.authorCompany || 'Alumni Network',
-      tags: dto.tags && dto.tags.length > 0 ? dto.tags : ['Mentorship', 'Career'],
+      category: dto.category || defaultCategory,
+      authorName: dto.authorName || fallbackUser?.name || (isStudent ? 'Candidate Student' : 'Verified Mentor'),
+      authorRole: dto.authorRole || fallbackUser?.role || defaultRole,
+      authorCompany: dto.authorCompany || defaultCompany,
+      tags: dto.tags && dto.tags.length > 0 ? dto.tags : [isStudent ? 'Project' : 'Mentorship', 'Career'],
     });
   }
 

@@ -165,7 +165,7 @@ export interface ConnectionRequest {
 }
 
 
-export type CommunityCategory = "MENTOR_UPDATE" | "TECH_INSIGHT" | "REFERRAL" | "EVENT";
+export type CommunityCategory = "MENTOR_UPDATE" | "TECH_INSIGHT" | "REFERRAL" | "STUDENT_UPDATE" | "EVENT";
 
 export interface CommunityPost {
   id: string;

@@ -96,8 +96,8 @@ export function Navbar() {
                   Discover Alumni
                 </Link>
                 <Link href="/community" className="flex items-center gap-1.5 hover:text-brand-orange transition-colors">
-                  <MessageSquare className="h-4 w-4" />
-                  Community Feed
+                  <MessageSquare className="h-4 w-4 text-brand-orange" />
+                  Mentorship Updates
                 </Link>
                 <Link href="/connections" className="flex items-center gap-1.5 hover:text-brand-orange transition-colors">
                   <Users className="h-4 w-4" />
@@ -108,7 +108,7 @@ export function Navbar() {
               <>
                 <Link href="/community" className="flex items-center gap-1.5 hover:text-brand-orange transition-colors">
                   <MessageSquare className="h-4 w-4 text-purple-600" />
-                  Share Mentor Updates
+                  Mentorship Updates
                 </Link>
                 <Link href="/connections" className="flex items-center gap-1.5 hover:text-brand-orange transition-colors">
                   <Inbox className="h-4 w-4 text-blue-600" />

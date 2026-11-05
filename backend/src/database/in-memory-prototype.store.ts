@@ -84,7 +84,7 @@ export interface PrototypeCommunityPost {
   id: string;
   title: string;
   content: string;
-  category: 'MENTOR_UPDATE' | 'TECH_INSIGHT' | 'REFERRAL' | 'EVENT';
+  category: 'MENTOR_UPDATE' | 'TECH_INSIGHT' | 'REFERRAL' | 'STUDENT_UPDATE' | 'EVENT';
   authorName: string;
   authorRole: string;
   authorCompany?: string;
