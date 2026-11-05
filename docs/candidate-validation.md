@@ -20,32 +20,44 @@ All candidate-validation routes require `Authorization: Bearer <accessToken>`. T
 
 ## Scoring rubric (pilot values)
 
-Automated total: 100 points. Data is fetched on demand from GitHub REST API and Codeforces public API. We do not request external platform passwords or tokens.
+The public APIs provide profile and activity data; **they do not return an AlumniConnect score**. The backend fetches public data on demand, applies the point rules below, stores the data and score breakdown as an evidence snapshot, and adds the components together. We do not request external platform passwords or tokens, and no API key is required for these public-data requests. Unauthenticated GitHub API requests are subject to GitHub's rate limits.
+
+The automated total is out of 100: GitHub (45) + Codeforces (45) + evidence availability (10). Each category is threshold-based: meeting a threshold earns the listed points for that signal, and falling below its first threshold earns 0. Points within a signal do not accumulate across thresholds.
 
 ### GitHub (45 points)
 
-| Signal | Points |
-| --- | ---: |
-| Public repositories: 1 / 3 / 6+ repositories | 5 / 10 / 15 |
-| Repositories pushed to during the last 12 months: 1 / 2 / 3+ | 5 / 10 / 15 |
-| Descriptions on 40% / 80%+ of the fetched repository sample | 5 / 10 |
-| GitHub profile has a non-empty bio | 5 |
+The backend requests the public GitHub user record and up to 100 repositories, ordered by most recently updated. It calculates:
 
-At most 100 repositories are fetched, ordered by most recently updated. The public repository count comes from the GitHub user record; description coverage is measured only over the fetched sample. Stars, followers, and raw commit counts do not contribute.
+| Signal derived from GitHub data | Threshold | Points |
+| --- | --- | ---: |
+| Public repository count from the user record | 1–2 / 3–5 / 6+ repositories | 5 / 10 / 15 |
+| Repositories whose `pushed_at` date is within the last 365 days, among the fetched repositories | 1 / 2 / 3+ repositories | 5 / 10 / 15 |
+| Fetched repositories with a non-empty description, divided by the number fetched | 40% / 80%+ coverage | 5 / 10 |
+| User record has a non-empty bio | Yes | 5 |
+
+Description coverage is measured only against the fetched sample (up to 100), while the repository-count signal uses GitHub's total public repository count. If no repositories are fetched, description coverage earns 0. Stars, followers, raw commit counts, private repositories, and ownership claims do not contribute.
 
 ### Codeforces (45 points)
 
-| Signal | Points |
-| --- | ---: |
-| Distinct accepted problems in the latest 10,000 submissions: 10 / 50 / 150+ | 5 / 10 / 15 |
-| Current rating: 1200 / 1400 / 1700+ | 5 / 10 / 15 |
-| Rated contests: 1 / 5 / 15+ | 5 / 10 / 15 |
+For a Codeforces handle, the backend requests the public user record, the latest 10,000 submissions, and the user's rated-contest history. It calculates:
 
-This is a coarse pilot rubric, not a platform-independent ranking. Different coding platforms use incompatible metrics.
+| Signal derived from Codeforces data | Threshold | Points |
+| --- | --- | ---: |
+| Distinct problems with an `OK` submission in the fetched submissions | 10 / 50 / 150+ problems | 5 / 10 / 15 |
+| Current rating from the user record | 1200 / 1400 / 1700+ | 5 / 10 / 15 |
+| Number of rated-contest entries returned | 1 / 5 / 15+ contests | 5 / 10 / 15 |
+
+Repeated accepted submissions for the same problem count once. The service identifies a problem using its contest ID, index, and name. An absent rating earns 0 rating points. This is a coarse pilot rubric, not a platform-independent ranking; different coding platforms use incompatible metrics.
 
 ### Evidence availability (10 points)
 
-10 points are included only when both the GitHub and Codeforces records are successfully retrieved. Provider failures return an API error and do not produce an assessment. For unsupported coding platforms, the score and evidence-availability score are null and status is `MANUAL_REVIEW`.
+The backend adds 10 points when both GitHub evidence and supported Codeforces evidence are successfully retrieved and assessed. Provider/network errors, missing profiles, or rate limits fail the assessment with an API error; they are not silently converted into 0 points.
+
+If the selected coding platform is not yet supported for automated scoring (for example, LeetCode, HackerRank, or CodeChef), the backend still assesses GitHub, but sets the coding score and evidence-availability score to null. It returns `MANUAL_REVIEW` and no overall score rather than treating missing support as a zero.
+
+### Example calculation
+
+Suppose the fetched GitHub evidence earns 30/45, the Codeforces evidence earns 25/45, and both providers returned usable evidence. The overall result is `30 + 25 + 10 = 65/100`, which maps to `DEVELOPING`. The score is a result of these project-defined rules, not an official rating from either platform.
 
 ## Status bands
 
