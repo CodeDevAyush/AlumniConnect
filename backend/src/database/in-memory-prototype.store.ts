@@ -475,24 +475,17 @@ export class InMemoryPrototypeStore implements OnModuleInit {
     if (!req) return null;
     req.status = status;
 
-    if (status === 'ACCEPTED' && (!req.messages || req.messages.length === 0)) {
-      req.messages = [
-        {
-          id: randomUUID(),
-          senderId: 'ai-assistant',
-          senderName: 'AlumniConnect Mentorship Bot',
-          senderRole: 'AI_BOT',
-          text: `Welcome! Mentorship channel activated between ${req.receiverName} (${req.receiverCompany}) and ${req.requesterName}. You can chat directly here to discuss career guidance, project architecture, and interview prep.`,
-          timestamp: new Date().toISOString(),
-        },
-      ];
+    if (status === 'ACCEPTED' && !req.messages) {
+      req.messages = [];
     }
     return req;
   }
 
   getConnectionMessages(requestId: string): PrototypeChatMessage[] {
     const req = this.allConnectionRequests.find((r) => r.id === requestId);
-    return req?.messages ?? [];
+    return (req?.messages ?? []).filter(
+      (m) => m.senderRole !== 'AI_BOT' && m.senderId !== 'ai-assistant',
+    );
   }
 
   addConnectionMessage(
@@ -514,19 +507,6 @@ export class InMemoryPrototypeStore implements OnModuleInit {
       timestamp: new Date().toISOString(),
     };
     req.messages.push(msg);
-
-    // Context-aware bot helpful assistance
-    const lower = text.toLowerCase();
-    if (lower.includes('agenda') || lower.includes('agenda?') || lower.includes('meeting') || lower.includes('tips')) {
-      req.messages.push({
-        id: randomUUID(),
-        senderId: 'ai-assistant',
-        senderName: 'AlumniConnect Mentorship Bot',
-        senderRole: 'AI_BOT',
-        text: 'Mentorship Bot Suggestion: Great discussion! A high-impact 30-min session format: 1) 5 min: candidate background & career goals, 2) 15 min: top project code review & architecture discussion, 3) 10 min: actionable next steps and interview roadmap.',
-        timestamp: new Date().toISOString(),
-      });
-    }
 
     return msg;
   }

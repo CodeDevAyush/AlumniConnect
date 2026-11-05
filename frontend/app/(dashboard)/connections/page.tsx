@@ -26,6 +26,7 @@ import {
   Terminal,
   FileCheck,
   X,
+  Edit3,
 } from "lucide-react";
 import { Card, CardTitle, CardDescription, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,10 @@ export default function ConnectionsPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [chatTab, setChatTab] = useState<"CHAT" | "AI_COPILOT">("CHAT");
+  const [customAiPrompt, setCustomAiPrompt] = useState("");
+  const [customAiAnswer, setCustomAiAnswer] = useState("");
+  const [customAiLoading, setCustomAiLoading] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   const currentUser = getCurrentUser();
@@ -713,13 +718,13 @@ export default function ConnectionsPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 2. MENTORSHIP CHATBOT / DIRECT MESSAGING DRAWER                           */}
+      {/* 2. MENTORSHIP 1-ON-1 CHAT & ROLE-SPECIFIC AI COPILOT                      */}
       {/* ========================================================================= */}
       {chatModalRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
           <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col h-[650px] max-h-[92vh]">
             {/* Chat Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/90">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/90">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="relative">
                   <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
@@ -736,148 +741,271 @@ export default function ConnectionsPage() {
                         ? chatModalRequest.requesterName || "Candidate Mentee"
                         : `${chatModalRequest.receiverName || "Alumni Mentor"} (${chatModalRequest.receiverCompany || "Mentor"})`}
                     </h3>
-                    <Badge variant="outline" className="border-purple-300 text-purple-700 bg-purple-50 text-[10px] py-0 px-1 shrink-0">
-                      Connected
+                    <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] py-0 px-1 shrink-0">
+                      1-on-1 Direct
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate">
-                    <Sparkles className="h-3 w-3 text-brand-orange shrink-0" />
-                    <span>Direct Mentorship Channel • AI Assisted</span>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {isAlumni ? "Candidate Mentee Channel" : "Alumni Mentor Channel"}
                   </p>
                 </div>
               </div>
 
-              <button
-                onClick={() => setChatModalRequest(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Mode Tabs */}
+                <div className="flex rounded-lg bg-slate-200/70 p-0.5 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setChatTab("CHAT")}
+                    className={`px-2.5 py-1 rounded-md transition-all ${
+                      chatTab === "CHAT"
+                        ? "bg-white text-slate-900 shadow-2xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    💬 Direct Chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChatTab("AI_COPILOT")}
+                    className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
+                      chatTab === "AI_COPILOT"
+                        ? "bg-purple-600 text-white shadow-2xs"
+                        : "text-purple-700 hover:text-purple-900"
+                    }`}
+                  >
+                    <Bot className="h-3 w-3" />
+                    <span>AI Copilot</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setChatModalRequest(null)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition-colors ml-1"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
-            {/* Quick Suggestion Prompt Chips */}
-            <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center gap-1.5 overflow-x-auto text-[11px] text-slate-600 no-scrollbar">
-              <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1">
-                <Bot className="h-3 w-3 text-purple-600" /> AI Prompts:
-              </span>
-              <button
-                type="button"
-                onClick={() => handleSendMessage("Can you suggest a 30-min meeting agenda for our mentorship sync?")}
-                className="px-2.5 py-1 bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 rounded-full border border-slate-200 font-medium shrink-0 transition-colors"
-              >
-                📅 Suggest meeting agenda
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSendMessage("Could you review my GitHub portfolio and give feedback on repo architecture?")}
-                className="px-2.5 py-1 bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 rounded-full border border-slate-200 font-medium shrink-0 transition-colors"
-              >
-                📝 Code review checklist
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSendMessage("What are the key system design and DSA topics to focus on for high-tier referrals?")}
-                className="px-2.5 py-1 bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 rounded-full border border-slate-200 font-medium shrink-0 transition-colors"
-              >
-                💡 System design & referral tips
-              </button>
-            </div>
+            {/* TAB 1: PURE 1-ON-1 HUMAN CONVERSATION (NO BOT INTERRUPTIONS) */}
+            {chatTab === "CHAT" ? (
+              <>
+                <div className="flex-1 px-4 py-4 overflow-y-auto space-y-3 bg-slate-50/30">
+                  {chatLoading ? (
+                    <div className="py-12 text-center">
+                      <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-purple-600 border-r-transparent"></div>
+                      <p className="mt-2 text-xs text-slate-400">Loading conversation history...</p>
+                    </div>
+                  ) : chatMessages.filter((m) => m.senderRole !== "AI_BOT" && m.senderId !== "ai-assistant").length === 0 ? (
+                    <div className="py-16 text-center text-xs text-slate-400 max-w-sm mx-auto space-y-2">
+                      <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-500">
+                        <MessageSquare className="h-5 w-5" />
+                      </div>
+                      <p className="font-semibold text-slate-700">Direct Mentorship Channel Active</p>
+                      <p className="text-slate-500">
+                        No messages yet. Send a message to start communicating directly, or switch to the <strong>AI Copilot</strong> tab for role-tailored questions!
+                      </p>
+                    </div>
+                  ) : (
+                    chatMessages
+                      .filter((m) => m.senderRole !== "AI_BOT" && m.senderId !== "ai-assistant")
+                      .map((msg) => {
+                        const isMe = msg.senderId === currentUser?.id;
 
-            {/* Messages Feed */}
-            <div className="flex-1 px-4 py-4 overflow-y-auto space-y-3.5 bg-slate-50/30">
-              {chatLoading ? (
-                <div className="py-12 text-center">
-                  <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-purple-600 border-r-transparent"></div>
-                  <p className="mt-2 text-xs text-slate-400">Loading conversation history...</p>
-                </div>
-              ) : chatMessages.length === 0 ? (
-                <div className="py-12 text-center text-xs text-slate-400">
-                  <Bot className="h-8 w-8 text-purple-400 mx-auto mb-2" />
-                  <p>Mentorship channel initiated. Say hello or pick an AI prompt above!</p>
-                </div>
-              ) : (
-                chatMessages.map((msg) => {
-                  const isBot = msg.senderRole === "AI_BOT" || msg.senderId === "ai-assistant";
-                  const isMe = msg.senderId === currentUser?.id;
-
-                  if (isBot) {
-                    return (
-                      <div key={msg.id} className="flex gap-2.5 max-w-[88%] mx-auto my-2">
-                        <div className="h-7 w-7 rounded-full bg-purple-100 border border-purple-200 text-purple-700 flex items-center justify-center shrink-0 mt-0.5">
-                          <Bot className="h-4 w-4" />
-                        </div>
-                        <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-xs text-slate-700 shadow-2xs">
-                          <div className="flex items-center gap-1.5 font-bold text-purple-800 text-[11px] mb-1">
-                            <span>{msg.senderName}</span>
-                            <Badge className="bg-purple-600 text-white text-[9px] py-0 px-1 font-semibold">AI Assistant</Badge>
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] ${
+                              isMe ? "ml-auto" : "mr-auto"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 mb-0.5 text-[10px] text-slate-400">
+                              <span className="font-semibold text-slate-700">{isMe ? "You" : msg.senderName}</span>
+                              {msg.senderRole && (
+                                <span className="uppercase text-[9px] text-slate-400">({msg.senderRole})</span>
+                              )}
+                              <span>•</span>
+                              <span>
+                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                            <div
+                              className={`px-3.5 py-2 rounded-2xl text-xs leading-relaxed ${
+                                isMe
+                                  ? "bg-purple-600 text-white rounded-tr-xs shadow-2xs"
+                                  : "bg-white border border-slate-200 text-slate-800 rounded-tl-xs shadow-2xs"
+                              }`}
+                            >
+                              {msg.text}
+                            </div>
                           </div>
-                          <p className="leading-relaxed whitespace-pre-line">{msg.text}</p>
-                          <span className="text-[9px] text-purple-400 mt-1 block">
-                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }
+                        );
+                      })
+                  )}
+                  <div ref={chatBottomRef} />
+                </div>
 
-                  return (
+                {/* Input Bar */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }}
+                  className="p-3 border-t border-slate-200 bg-white flex items-center gap-2"
+                >
+                  <Input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Type your message..."
+                    className="text-xs h-9"
+                    disabled={sendingMessage}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={!chatInput.trim() || sendingMessage}
+                    size="sm"
+                    className="bg-purple-600 hover:bg-purple-700 text-white h-9 px-3.5 gap-1 shrink-0"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">Send</span>
+                  </Button>
+                </form>
+              </>
+            ) : (
+              /* TAB 2: SEPARATE AI ROLE-SPECIFIC ASSISTANT & SUGGESTIONS */
+              <div className="flex-1 p-5 overflow-y-auto space-y-5 bg-gradient-to-b from-purple-50/30 to-white text-xs">
+                <div className="p-3.5 rounded-xl border border-purple-200 bg-purple-50/70 text-slate-700 space-y-1">
+                  <div className="font-bold text-purple-900 flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-purple-600" />
+                    <span>{isAlumni ? "AI Advisor for Mentors" : "AI Copilot for Student Mentees"}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    {isAlumni
+                      ? "Use these structured frameworks to deliver actionable mentoring feedback, code audit comments, and interview roadmaps."
+                      : "Use these tailored questions to prepare for 1-on-1 syncs, ask for repository reviews, and seek career referrals."}
+                  </p>
+                </div>
+
+                {/* Role-specific prompt recommendations */}
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    {isAlumni ? "Recommended Mentoring Frameworks" : "Recommended Questions for Your Mentor"}
+                  </h4>
+
+                  {(isAlumni
+                    ? [
+                        {
+                          title: "📋 30-Min Kickoff Structure",
+                          text: "Welcome! Let's kick off with a quick review of your top repository, identify 2-3 architectural improvements, and discuss career prep for your target roles.",
+                        },
+                        {
+                          title: "🔍 Constructive Code Audit Feedback",
+                          text: "I evaluated your project code. Great structure! To meet senior production standards, focus on: 1) error propagation patterns, 2) unit test boundary cases, and 3) structured logging.",
+                        },
+                        {
+                          title: "🏆 Technical Interview Preparation",
+                          text: "For upcoming technical interviews, make sure to defend your concurrency model, database indexing tradeoffs, and clear algorithmic Big-O explanations.",
+                        },
+                        {
+                          title: "🤝 Referral Eligibility Criteria",
+                          text: "I coordinate referrals for candidates who achieve an 80+ assessment score and maintain verified GitHub commit practices. Let's work towards that milestone together.",
+                        },
+                      ]
+                    : [
+                        {
+                          title: "📅 30-Min Meeting Agenda",
+                          text: "Could you help me structure our 30-min sync? I was thinking 5m background & target roles, 15m repository architecture review, and 10m career roadmap.",
+                        },
+                        {
+                          title: "💻 Repository Code Review Request",
+                          text: "Could you review my repository pull request and advise on scalability, error handling patterns, and production readiness?",
+                        },
+                        {
+                          title: "🚀 Referral Standards Inquiry",
+                          text: "What technical evidence, code metrics, and portfolio highlights do you look for when recommending candidates internally at your firm?",
+                        },
+                        {
+                          title: "💡 System Design & Concurrency Focus",
+                          text: "What were the most important technical concepts (distributed caching, database sharding, async queues) you found crucial in your early engineering career?",
+                        },
+                      ]
+                  ).map((item, idx) => (
                     <div
-                      key={msg.id}
-                      className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] ${
-                        isMe ? "ml-auto" : "mr-auto"
-                      }`}
+                      key={idx}
+                      className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-purple-300 transition-all shadow-2xs space-y-2"
                     >
-                      <div className="flex items-center gap-1.5 mb-0.5 text-[10px] text-slate-400">
-                        <span className="font-semibold text-slate-700">{isMe ? "You" : msg.senderName}</span>
-                        {msg.senderRole && (
-                          <span className="uppercase text-[9px] text-slate-400">({msg.senderRole})</span>
-                        )}
-                        <span>•</span>
-                        <span>
-                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      </div>
-                      <div
-                        className={`px-3.5 py-2 rounded-2xl text-xs leading-relaxed ${
-                          isMe
-                            ? "bg-purple-600 text-white rounded-tr-xs shadow-2xs"
-                            : "bg-white border border-slate-200 text-slate-800 rounded-tl-xs shadow-2xs"
-                        }`}
-                      >
-                        {msg.text}
+                      <div className="font-bold text-slate-900">{item.title}</div>
+                      <p className="text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        {item.text}
+                      </p>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setChatInput(item.text);
+                            setChatTab("CHAT");
+                          }}
+                          className="text-xs h-7 gap-1 border-purple-200 text-purple-700 hover:bg-purple-50"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          <span>Insert into Message</span>
+                        </Button>
                       </div>
                     </div>
-                  );
-                })
-              )}
-              <div ref={chatBottomRef} />
-            </div>
+                  ))}
+                </div>
 
-            {/* Input Bar */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="p-3 border-t border-slate-200 bg-white flex items-center gap-2"
-            >
-              <Input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type a message or question to your mentor / mentee..."
-                className="text-xs h-9"
-                disabled={sendingMessage}
-              />
-              <Button
-                type="submit"
-                disabled={!chatInput.trim() || sendingMessage}
-                size="sm"
-                className="bg-purple-600 hover:bg-purple-700 text-white h-9 px-3.5 gap-1 shrink-0"
-              >
-                <Send className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline text-xs">Send</span>
-              </Button>
-            </form>
+                {/* Custom Private AI Advice Box */}
+                <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-3">
+                  <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <Bot className="h-4 w-4 text-purple-600" />
+                    <span>Ask Private AI Mentor Advice (Not sent to counterpart)</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={customAiPrompt}
+                      onChange={(e) => setCustomAiPrompt(e.target.value)}
+                      placeholder={
+                        isAlumni
+                          ? "Ask AI: 'How do I mentor a student struggling with recursion?'"
+                          : "Ask AI: 'How do I explain my project architecture concisely?'"
+                      }
+                      className="text-xs h-9"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!customAiPrompt.trim()) return;
+                        setCustomAiLoading(true);
+                        setTimeout(() => {
+                          setCustomAiAnswer(
+                            isAlumni
+                              ? `Mentor Tip for "${customAiPrompt}": Guide them by breaking down the base case and recurrence relation visually. Ask guiding questions rather than providing the solution directly.`
+                              : `Mentee Tip for "${customAiPrompt}": Use the STAR method: Situation (problem solved), Task (technical requirements), Action (architecture choices made), and Result (verified metrics & test coverage).`
+                          );
+                          setCustomAiLoading(false);
+                        }, 500);
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700 text-white h-9 px-3 shrink-0"
+                    >
+                      Ask AI
+                    </Button>
+                  </div>
+
+                  {customAiLoading && (
+                    <div className="p-2 text-xs text-purple-600 animate-pulse">Consulting Mentorship AI...</div>
+                  )}
+
+                  {customAiAnswer && (
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-purple-950 text-xs leading-relaxed">
+                      {customAiAnswer}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

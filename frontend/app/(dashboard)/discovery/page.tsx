@@ -422,14 +422,18 @@ export default function DiscoveryPage() {
 
               <CardFooter className="pt-3 border-t border-slate-100 flex gap-2">
                 {isAlumni ? (
-                  <Button size="sm" variant="outline" className="w-full text-xs hover:border-purple-300 hover:text-purple-700">
-                    View Colleague Profile
-                  </Button>
+                  <Link href={`/profile?id=${alumni.id}`} className="w-full">
+                    <Button size="sm" variant="outline" className="w-full text-xs hover:border-purple-300 hover:text-purple-700">
+                      View Colleague Profile
+                    </Button>
+                  </Link>
                 ) : (
                   <>
-                    <Button size="sm" variant="outline" className="w-1/2 text-xs">
-                      View Profile
-                    </Button>
+                    <Link href={`/profile?id=${alumni.id}`} className="w-1/2">
+                      <Button size="sm" variant="outline" className="w-full text-xs">
+                        View Profile
+                      </Button>
+                    </Link>
 
                     {alumni.isTopTier && !isScoreUnlocked ? (
                       <Link href="/candidate-validation" className="w-1/2">
