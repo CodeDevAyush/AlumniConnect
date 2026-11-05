@@ -149,6 +149,15 @@ export interface ConnectionEligibility {
   requirement: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  text: string;
+  timestamp: string;
+}
+
 export interface ConnectionRequest {
   id: string;
   requesterId: string;
@@ -156,12 +165,19 @@ export interface ConnectionRequest {
   requesterEmail?: string;
   requesterScore?: number | null;
   requesterGithub?: string;
+  requesterDepartment?: string;
+  requesterGradYear?: number;
+  requesterCodingPlatform?: string;
+  requesterCodingHandle?: string;
+  requesterTargetRoles?: string[];
+  requesterTopRepo?: string;
   receiverId: string;
   receiverName?: string;
   receiverCompany?: string;
   receiverTitle?: string;
   status: "PENDING" | "ACCEPTED" | "DECLINED" | "BLOCKED";
   createdAt: string;
+  messages?: ChatMessage[];
 }
 
 

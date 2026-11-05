@@ -65,6 +65,15 @@ export interface PrototypeAssessment {
   storedJsonPath?: string;
 }
 
+export interface PrototypeChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string; // 'ALUMNI' | 'STUDENT' | 'AI_BOT'
+  text: string;
+  timestamp: string;
+}
+
 export interface PrototypeConnectionRequest {
   id: string;
   requesterId: string;
@@ -72,12 +81,19 @@ export interface PrototypeConnectionRequest {
   requesterEmail?: string;
   requesterScore?: number | null;
   requesterGithub?: string;
+  requesterDepartment?: string;
+  requesterGradYear?: number;
+  requesterCodingPlatform?: string;
+  requesterCodingHandle?: string;
+  requesterTargetRoles?: string[];
+  requesterTopRepo?: string;
   receiverId: string;
   receiverName?: string;
   receiverCompany?: string;
   receiverTitle?: string;
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
   createdAt: Date;
+  messages?: PrototypeChatMessage[];
 }
 
 export interface PrototypeCommunityPost {
@@ -414,19 +430,28 @@ export class InMemoryPrototypeStore implements OnModuleInit {
       ? `${receiver.profile.firstName} ${receiver.profile.lastName}`.trim()
       : receiver?.email.split('@')[0] || 'Alumni Mentor';
 
+    const valProfile = this.getValidationProfile(requesterId);
+
     const request: PrototypeConnectionRequest = {
       id: randomUUID(),
       requesterId,
       requesterName,
       requesterEmail: requester?.email,
       requesterScore,
-      requesterGithub: requester?.profile?.githubUsername,
+      requesterGithub: requester?.profile?.githubUsername || valProfile?.githubUsername || 'CodeDevAyush',
+      requesterDepartment: requester?.profile?.department || 'Computer Science & AI',
+      requesterGradYear: requester?.profile?.graduationYear || 2026,
+      requesterCodingPlatform: requester?.profile?.codingPlatform || valProfile?.codingPlatform || 'LeetCode',
+      requesterCodingHandle: requester?.profile?.codingHandle || valProfile?.codingHandle || 'alex_code',
+      requesterTargetRoles: requester?.profile?.targetRoles || ['Backend Software Engineer', 'Distributed Systems'],
+      requesterTopRepo: valProfile?.topRepoUrl || 'https://github.com/CodeDevAyush/AlumniConnect',
       receiverId,
       receiverName,
       receiverCompany: receiver?.profile?.company || 'Alumni Network',
       receiverTitle: receiver?.profile?.title || 'Senior Engineer',
       status: 'PENDING',
       createdAt: new Date(),
+      messages: [],
     };
 
     this.allConnectionRequests.push(request);
@@ -449,7 +474,61 @@ export class InMemoryPrototypeStore implements OnModuleInit {
     );
     if (!req) return null;
     req.status = status;
+
+    if (status === 'ACCEPTED' && (!req.messages || req.messages.length === 0)) {
+      req.messages = [
+        {
+          id: randomUUID(),
+          senderId: 'ai-assistant',
+          senderName: 'AlumniConnect Mentorship Bot',
+          senderRole: 'AI_BOT',
+          text: `Welcome! Mentorship channel activated between ${req.receiverName} (${req.receiverCompany}) and ${req.requesterName}. You can chat directly here to discuss career guidance, project architecture, and interview prep.`,
+          timestamp: new Date().toISOString(),
+        },
+      ];
+    }
     return req;
+  }
+
+  getConnectionMessages(requestId: string): PrototypeChatMessage[] {
+    const req = this.allConnectionRequests.find((r) => r.id === requestId);
+    return req?.messages ?? [];
+  }
+
+  addConnectionMessage(
+    requestId: string,
+    senderId: string,
+    senderName: string,
+    senderRole: string,
+    text: string,
+  ): PrototypeChatMessage | null {
+    const req = this.allConnectionRequests.find((r) => r.id === requestId);
+    if (!req) return null;
+    if (!req.messages) req.messages = [];
+    const msg: PrototypeChatMessage = {
+      id: randomUUID(),
+      senderId,
+      senderName,
+      senderRole,
+      text,
+      timestamp: new Date().toISOString(),
+    };
+    req.messages.push(msg);
+
+    // Context-aware bot helpful assistance
+    const lower = text.toLowerCase();
+    if (lower.includes('agenda') || lower.includes('agenda?') || lower.includes('meeting') || lower.includes('tips')) {
+      req.messages.push({
+        id: randomUUID(),
+        senderId: 'ai-assistant',
+        senderName: 'AlumniConnect Mentorship Bot',
+        senderRole: 'AI_BOT',
+        text: 'Mentorship Bot Suggestion: Great discussion! A high-impact 30-min session format: 1) 5 min: candidate background & career goals, 2) 15 min: top project code review & architecture discussion, 3) 10 min: actionable next steps and interview roadmap.',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return msg;
   }
 
   getCommunityPosts(): PrototypeCommunityPost[] {

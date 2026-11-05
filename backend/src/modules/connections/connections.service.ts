@@ -146,6 +146,34 @@ export class ConnectionsService {
     }
   }
 
+  async getMessages(requestId: string, userId: string) {
+    return this.prototypeStore.getConnectionMessages(requestId);
+  }
+
+  async sendMessage(
+    requestId: string,
+    userId: string,
+    text: string,
+    senderName?: string,
+    senderRole?: string,
+  ) {
+    const user = this.prototypeStore.findUserById(userId);
+    const resolvedName =
+      senderName ||
+      (user?.profile ? `${user.profile.firstName} ${user.profile.lastName || ''}`.trim() : user?.email?.split('@')[0]) ||
+      'User';
+    const resolvedRole = senderRole || user?.role || 'STUDENT';
+    const msg = this.prototypeStore.addConnectionMessage(
+      requestId,
+      userId,
+      resolvedName,
+      resolvedRole,
+      text,
+    );
+    if (!msg) throw new NotFoundException('Connection request not found');
+    return msg;
+  }
+
   private async getLatestAssessmentScore(userId: string): Promise<number | null> {
     if (process.env.PROTOTYPE_IN_MEMORY === 'true') {
       return this.prototypeStore.getLatestAssessmentScore(userId);

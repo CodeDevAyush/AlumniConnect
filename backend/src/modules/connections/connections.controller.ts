@@ -40,4 +40,26 @@ export class ConnectionsController {
   ) {
     return this.connectionsService.respondToRequest(requestId, userId, body.status);
   }
+
+  @Get('requests/:id/messages')
+  @ApiOperation({ summary: 'Get direct chat messages for an accepted connection' })
+  async getMessages(@CurrentUser('id') userId: string, @Param('id') requestId: string) {
+    return this.connectionsService.getMessages(requestId, userId);
+  }
+
+  @Post('requests/:id/messages')
+  @ApiOperation({ summary: 'Send a message in the mentorship channel' })
+  async sendMessage(
+    @CurrentUser('id') userId: string,
+    @Param('id') requestId: string,
+    @Body() body: { text: string; senderName?: string; senderRole?: string },
+  ) {
+    return this.connectionsService.sendMessage(
+      requestId,
+      userId,
+      body.text,
+      body.senderName,
+      body.senderRole,
+    );
+  }
 }

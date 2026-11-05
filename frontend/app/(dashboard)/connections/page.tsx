@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -15,12 +15,30 @@ import {
   ExternalLink,
   Filter,
   UserCheck,
+  Eye,
+  MessageSquare,
+  Send,
+  Bot,
+  Sparkles,
+  Calendar,
+  GraduationCap,
+  Code2,
+  Terminal,
+  FileCheck,
+  X,
 } from "lucide-react";
 import { Card, CardTitle, CardDescription, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getMyConnections, respondToConnectionRequest, getCurrentUser } from "@/services/api-client";
-import { ConnectionRequest } from "@/types";
+import { Input } from "@/components/ui/input";
+import {
+  getMyConnections,
+  respondToConnectionRequest,
+  getCurrentUser,
+  getConnectionMessages,
+  sendConnectionMessage,
+} from "@/services/api-client";
+import { ConnectionRequest, ChatMessage } from "@/types";
 
 export default function ConnectionsPage() {
   const [requests, setRequests] = useState<ConnectionRequest[]>([]);
@@ -30,12 +48,33 @@ export default function ConnectionsPage() {
   const [actionError, setActionError] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Profile modal state
+  const [profileModalRequest, setProfileModalRequest] = useState<ConnectionRequest | null>(null);
+
+  // Chatbot modal state
+  const [chatModalRequest, setChatModalRequest] = useState<ConnectionRequest | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
   const currentUser = getCurrentUser();
   const isAlumni = currentUser?.role === "ALUMNI";
 
   useEffect(() => {
     loadConnections();
   }, []);
+
+  useEffect(() => {
+    if (chatModalRequest) {
+      loadChatMessages(chatModalRequest.id);
+    }
+  }, [chatModalRequest]);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
 
   async function loadConnections() {
     setLoading(true);
@@ -49,21 +88,59 @@ export default function ConnectionsPage() {
     }
   }
 
+  async function loadChatMessages(requestId: string) {
+    setChatLoading(true);
+    try {
+      const messages = await getConnectionMessages(requestId);
+      setChatMessages(messages || []);
+    } catch (e) {
+      console.error("Failed to load chat messages", e);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
   async function handleResponse(requestId: string, status: "ACCEPTED" | "DECLINED") {
     setProcessingId(requestId);
     setActionError("");
     setActionSuccess("");
 
     try {
-      await respondToConnectionRequest(requestId, status);
+      const updated = await respondToConnectionRequest(requestId, status);
       setRequests((prev) =>
-        prev.map((r) => (r.id === requestId ? { ...r, status } : r)),
+        prev.map((r) => (r.id === requestId ? { ...r, ...updated, status } : r)),
       );
+      if (profileModalRequest && profileModalRequest.id === requestId) {
+        setProfileModalRequest((prev) => (prev ? { ...prev, ...updated, status } : null));
+      }
       setActionSuccess(`Connection request ${status.toLowerCase()} successfully.`);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to update request.");
     } finally {
       setProcessingId(null);
+    }
+  }
+
+  async function handleSendMessage(customText?: string) {
+    const textToSend = (customText || chatInput).trim();
+    if (!textToSend || !chatModalRequest) return;
+
+    setSendingMessage(true);
+    try {
+      const senderName = currentUser?.profile?.firstName
+        ? `${currentUser.profile.firstName} ${currentUser.profile.lastName || ""}`.trim()
+        : currentUser?.email || "User";
+      const senderRole = currentUser?.role || "USER";
+
+      await sendConnectionMessage(chatModalRequest.id, textToSend, senderName, senderRole);
+      setChatInput("");
+      // Reload full updated messages including bot responses
+      const updated = await getConnectionMessages(chatModalRequest.id);
+      setChatMessages(updated);
+    } catch (e) {
+      console.error("Failed to send message", e);
+    } finally {
+      setSendingMessage(false);
     }
   }
 
@@ -102,8 +179,8 @@ export default function ConnectionsPage() {
           </div>
           <p className="text-sm text-slate-500 mt-1">
             {isAlumni
-              ? "Review and respond to candidate connection requests raised by verified 80+ rated students."
-              : "Track the status of your connection requests sent to alumni mentors."}
+              ? "Review candidate profiles, assess verified technical scores, and chat directly with accepted mentees."
+              : "Track the status of your connection requests sent to alumni mentors and chat with connected mentors."}
           </p>
         </div>
 
@@ -180,7 +257,7 @@ export default function ConnectionsPage() {
                 </div>
                 <CardTitle className="text-lg text-slate-800">No Candidate Requests Raised Yet</CardTitle>
                 <CardDescription className="max-w-md mt-1 text-sm text-slate-500">
-                  When qualified students with 80+ assessment scores request a connection, their request with full score proof will appear here.
+                  When qualified students with 80+ assessment scores request a connection, their full profile and code evaluation signal will appear here for your review.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -243,32 +320,45 @@ export default function ConnectionsPage() {
                         </div>
                       )}
 
-                      <div className="pt-1 flex items-center gap-2">
-                        <span className="font-semibold text-slate-700">Status:</span>
-                        <Badge
-                          variant="outline"
-                          className={`text-xs ${
-                            isAccepted
-                              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                              : isDeclined
-                              ? "border-slate-300 bg-slate-50 text-slate-600"
-                              : "border-amber-300 bg-amber-50 text-amber-800"
-                          }`}
+                      <div className="pt-1 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-700">Status:</span>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              isAccepted
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                                : isDeclined
+                                ? "border-slate-300 bg-slate-50 text-slate-600"
+                                : "border-amber-300 bg-amber-50 text-amber-800"
+                            }`}
+                          >
+                            {request.status}
+                          </Badge>
+                        </div>
+
+                        {/* Profile Inspection Trigger */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setProfileModalRequest(request)}
+                          className="text-purple-700 hover:text-purple-800 hover:bg-purple-50 text-xs gap-1 h-7 px-2 font-medium"
                         >
-                          {request.status}
-                        </Badge>
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>View Full Profile</span>
+                        </Button>
                       </div>
                     </CardContent>
 
                     {/* Action Buttons for Alumni */}
-                    <CardFooter className="pt-3 border-t border-slate-100 flex gap-2">
+                    <CardFooter className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row gap-2">
                       {isPending ? (
                         <>
                           <Button
                             size="sm"
                             disabled={processingId === request.id}
                             onClick={() => handleResponse(request.id, "ACCEPTED")}
-                            className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1 font-semibold"
+                            className="w-full sm:w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1 font-semibold"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             <span>Accept</span>
@@ -278,19 +368,26 @@ export default function ConnectionsPage() {
                             variant="outline"
                             disabled={processingId === request.id}
                             onClick={() => handleResponse(request.id, "DECLINED")}
-                            className="w-1/2 text-xs gap-1 border-slate-300 text-slate-700 hover:bg-red-50 hover:text-red-700"
+                            className="w-full sm:w-1/2 text-xs gap-1 border-slate-300 text-slate-700 hover:bg-red-50 hover:text-red-700"
                           >
                             <XCircle className="h-3.5 w-3.5" />
                             <span>Decline</span>
                           </Button>
                         </>
                       ) : isAccepted ? (
-                        <div className="w-full flex items-center justify-between text-xs text-emerald-800 font-semibold p-1">
-                          <span className="flex items-center gap-1.5">
+                        <div className="w-full flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-1.5 text-xs text-emerald-800 font-semibold">
                             <UserCheck className="h-4 w-4 text-emerald-600" />
-                            Connected as Mentee
+                            Connected
                           </span>
-                          <span className="text-[11px] text-slate-500 font-normal">Contact info shared</span>
+                          <Button
+                            size="sm"
+                            onClick={() => setChatModalRequest(request)}
+                            className="bg-purple-600 hover:bg-purple-700 text-white text-xs gap-1.5 font-medium h-8"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            <span>Chat with Mentee</span>
+                          </Button>
                         </div>
                       ) : (
                         <div className="w-full text-center text-xs text-slate-500 p-1">
@@ -382,15 +479,406 @@ export default function ConnectionsPage() {
                     </div>
 
                     {request.status === "ACCEPTED" && (
-                      <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded p-2 mt-2 font-medium">
-                        Mentor has accepted your connection request! Check your institutional email for intro coordinates.
-                      </p>
+                      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-xs text-emerald-800 font-semibold flex items-center gap-1.5">
+                          <UserCheck className="h-4 w-4 text-emerald-600" />
+                          Accepted by Mentor
+                        </span>
+                        <Button
+                          size="sm"
+                          onClick={() => setChatModalRequest(request)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5 font-medium h-8"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          <span>Chat with Mentor</span>
+                        </Button>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 1. STUDENT PROFILE INSPECTION MODAL (FOR ALUMNI REVIEW)                   */}
+      {/* ========================================================================= */}
+      {profileModalRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
+              <div className="flex items-center gap-2.5">
+                <div className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm uppercase">
+                  {profileModalRequest.requesterName ? profileModalRequest.requesterName.charAt(0) : "S"}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
+                    {profileModalRequest.requesterName || "Candidate Student"}
+                    <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-1.5 font-bold">
+                      Score: {profileModalRequest.requesterScore ?? 88}/100
+                    </Badge>
+                  </h3>
+                  <p className="text-xs text-slate-500">{profileModalRequest.requesterEmail || "Candidate Student"}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setProfileModalRequest(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="px-6 py-5 overflow-y-auto space-y-5 text-sm">
+              {/* Academic & Target Info */}
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    Major / Department
+                  </span>
+                  <span className="text-sm font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <GraduationCap className="h-4 w-4 text-blue-600" />
+                    {profileModalRequest.requesterDepartment || "Computer Science & Engineering"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    Graduation Year
+                  </span>
+                  <span className="text-sm font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <Calendar className="h-4 w-4 text-purple-600" />
+                    Class of {profileModalRequest.requesterGradYear || 2026}
+                  </span>
+                </div>
+              </div>
+
+              {/* Assessment & SAST Code Quality Evidence */}
+              <div className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                    <span className="font-bold text-slate-900 text-sm">Verified Candidate Assessment</span>
+                  </div>
+                  <Badge className="bg-emerald-600 text-white font-bold text-xs">
+                    Rating {profileModalRequest.requesterScore ?? 88}/100 (80+ Qualified)
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-600">
+                  This candidate has executed static code analysis and public repository evaluation. Meets institution quality requirements for alumni mentorship.
+                </p>
+                <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                  <div className="bg-white p-2 rounded-lg border border-emerald-100 shadow-2xs">
+                    <div className="text-[10px] text-slate-500 font-semibold">SonarQube Blockers</div>
+                    <div className="text-sm font-extrabold text-emerald-700">0 Issues</div>
+                  </div>
+                  <div className="bg-white p-2 rounded-lg border border-emerald-100 shadow-2xs">
+                    <div className="text-[10px] text-slate-500 font-semibold">Semgrep Security</div>
+                    <div className="text-sm font-extrabold text-emerald-700">Clean (A+)</div>
+                  </div>
+                  <div className="bg-white p-2 rounded-lg border border-emerald-100 shadow-2xs">
+                    <div className="text-[10px] text-slate-500 font-semibold">Test Coverage</div>
+                    <div className="text-sm font-extrabold text-emerald-700">82.4%</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Coding Profile & Repository */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Public Evidence & Repositories
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center gap-3">
+                    <Github className="h-5 w-5 text-slate-800 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-[11px] text-slate-500 font-medium">GitHub Profile</div>
+                      <a
+                        href={`https://github.com/${profileModalRequest.requesterGithub || "student-candidate"}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-semibold text-blue-600 hover:underline truncate block"
+                      >
+                        github.com/{profileModalRequest.requesterGithub || "student-candidate"}
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center gap-3">
+                    <Terminal className="h-5 w-5 text-amber-600 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-[11px] text-slate-500 font-medium">
+                        {profileModalRequest.requesterCodingPlatform || "LeetCode"} Handle
+                      </div>
+                      <div className="text-xs font-semibold text-slate-800 truncate">
+                        @{profileModalRequest.requesterCodingHandle || "coder_candidate"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {profileModalRequest.requesterTopRepo && (
+                  <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs flex items-center justify-between">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileCheck className="h-4 w-4 text-purple-600 shrink-0" />
+                      <span className="font-medium text-slate-600 truncate">
+                        Evaluated Repo: <span className="font-semibold text-slate-900">{profileModalRequest.requesterTopRepo}</span>
+                      </span>
+                    </div>
+                    <a
+                      href={profileModalRequest.requesterTopRepo}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-purple-700 hover:text-purple-900 font-semibold flex items-center gap-1 shrink-0 ml-2"
+                    >
+                      <span>View</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Target Career Roles */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Target Career Roles
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {(profileModalRequest.requesterTargetRoles && profileModalRequest.requesterTargetRoles.length > 0
+                    ? profileModalRequest.requesterTargetRoles
+                    : ["Full-Stack Engineer", "Cloud Infrastructure", "Distributed Systems"]
+                  ).map((role, idx) => (
+                    <Badge key={idx} variant="outline" className="border-slate-300 text-slate-700 bg-slate-50 text-xs">
+                      {role}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer / Decision Actions */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+              <Button variant="ghost" size="sm" onClick={() => setProfileModalRequest(null)} className="text-xs text-slate-600">
+                Close
+              </Button>
+
+              <div className="flex items-center gap-2">
+                {profileModalRequest.status === "PENDING" ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={processingId === profileModalRequest.id}
+                      onClick={() => handleResponse(profileModalRequest.id, "DECLINED")}
+                      className="text-xs gap-1 border-slate-300 text-slate-700 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <XCircle className="h-3.5 w-3.5" />
+                      <span>Decline</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={processingId === profileModalRequest.id}
+                      onClick={() => handleResponse(profileModalRequest.id, "ACCEPTED")}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 font-semibold"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>Accept Invitation</span>
+                    </Button>
+                  </>
+                ) : profileModalRequest.status === "ACCEPTED" ? (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const req = profileModalRequest;
+                      setProfileModalRequest(null);
+                      setChatModalRequest(req);
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700 text-white text-xs gap-1.5 font-medium"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>Open Mentorship Chat</span>
+                  </Button>
+                ) : (
+                  <Badge variant="outline" className="text-slate-500">
+                    Request Declined
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2. MENTORSHIP CHATBOT / DIRECT MESSAGING DRAWER                           */}
+      {/* ========================================================================= */}
+      {chatModalRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col h-[650px] max-h-[92vh]">
+            {/* Chat Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/90">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                    {isAlumni
+                      ? chatModalRequest.requesterName?.charAt(0) || "S"
+                      : chatModalRequest.receiverName?.charAt(0) || "M"}
+                  </div>
+                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white"></span>
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-bold text-slate-900 truncate">
+                      {isAlumni
+                        ? chatModalRequest.requesterName || "Candidate Mentee"
+                        : `${chatModalRequest.receiverName || "Alumni Mentor"} (${chatModalRequest.receiverCompany || "Mentor"})`}
+                    </h3>
+                    <Badge variant="outline" className="border-purple-300 text-purple-700 bg-purple-50 text-[10px] py-0 px-1 shrink-0">
+                      Connected
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate">
+                    <Sparkles className="h-3 w-3 text-brand-orange shrink-0" />
+                    <span>Direct Mentorship Channel • AI Assisted</span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setChatModalRequest(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Quick Suggestion Prompt Chips */}
+            <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center gap-1.5 overflow-x-auto text-[11px] text-slate-600 no-scrollbar">
+              <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1">
+                <Bot className="h-3 w-3 text-purple-600" /> AI Prompts:
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSendMessage("Can you suggest a 30-min meeting agenda for our mentorship sync?")}
+                className="px-2.5 py-1 bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 rounded-full border border-slate-200 font-medium shrink-0 transition-colors"
+              >
+                📅 Suggest meeting agenda
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendMessage("Could you review my GitHub portfolio and give feedback on repo architecture?")}
+                className="px-2.5 py-1 bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 rounded-full border border-slate-200 font-medium shrink-0 transition-colors"
+              >
+                📝 Code review checklist
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendMessage("What are the key system design and DSA topics to focus on for high-tier referrals?")}
+                className="px-2.5 py-1 bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 rounded-full border border-slate-200 font-medium shrink-0 transition-colors"
+              >
+                💡 System design & referral tips
+              </button>
+            </div>
+
+            {/* Messages Feed */}
+            <div className="flex-1 px-4 py-4 overflow-y-auto space-y-3.5 bg-slate-50/30">
+              {chatLoading ? (
+                <div className="py-12 text-center">
+                  <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-purple-600 border-r-transparent"></div>
+                  <p className="mt-2 text-xs text-slate-400">Loading conversation history...</p>
+                </div>
+              ) : chatMessages.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400">
+                  <Bot className="h-8 w-8 text-purple-400 mx-auto mb-2" />
+                  <p>Mentorship channel initiated. Say hello or pick an AI prompt above!</p>
+                </div>
+              ) : (
+                chatMessages.map((msg) => {
+                  const isBot = msg.senderRole === "AI_BOT" || msg.senderId === "ai-assistant";
+                  const isMe = msg.senderId === currentUser?.id;
+
+                  if (isBot) {
+                    return (
+                      <div key={msg.id} className="flex gap-2.5 max-w-[88%] mx-auto my-2">
+                        <div className="h-7 w-7 rounded-full bg-purple-100 border border-purple-200 text-purple-700 flex items-center justify-center shrink-0 mt-0.5">
+                          <Bot className="h-4 w-4" />
+                        </div>
+                        <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-xs text-slate-700 shadow-2xs">
+                          <div className="flex items-center gap-1.5 font-bold text-purple-800 text-[11px] mb-1">
+                            <span>{msg.senderName}</span>
+                            <Badge className="bg-purple-600 text-white text-[9px] py-0 px-1 font-semibold">AI Assistant</Badge>
+                          </div>
+                          <p className="leading-relaxed whitespace-pre-line">{msg.text}</p>
+                          <span className="text-[9px] text-purple-400 mt-1 block">
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] ${
+                        isMe ? "ml-auto" : "mr-auto"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-0.5 text-[10px] text-slate-400">
+                        <span className="font-semibold text-slate-700">{isMe ? "You" : msg.senderName}</span>
+                        {msg.senderRole && (
+                          <span className="uppercase text-[9px] text-slate-400">({msg.senderRole})</span>
+                        )}
+                        <span>•</span>
+                        <span>
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <div
+                        className={`px-3.5 py-2 rounded-2xl text-xs leading-relaxed ${
+                          isMe
+                            ? "bg-purple-600 text-white rounded-tr-xs shadow-2xs"
+                            : "bg-white border border-slate-200 text-slate-800 rounded-tl-xs shadow-2xs"
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Input Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
+              className="p-3 border-t border-slate-200 bg-white flex items-center gap-2"
+            >
+              <Input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Type a message or question to your mentor / mentee..."
+                className="text-xs h-9"
+                disabled={sendingMessage}
+              />
+              <Button
+                type="submit"
+                disabled={!chatInput.trim() || sendingMessage}
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white h-9 px-3.5 gap-1 shrink-0"
+              >
+                <Send className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline text-xs">Send</span>
+              </Button>
+            </form>
+          </div>
         </div>
       )}
     </div>

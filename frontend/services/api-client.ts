@@ -4,6 +4,7 @@ import {
   AuthResult,
   CandidateAssessment,
   CandidateValidationProfile,
+  ChatMessage,
   CodingPlatform,
   CommunityPost,
   ConnectionEligibility,
@@ -230,5 +231,24 @@ export async function createCommunityPost(input: {
 
 export async function likeCommunityPost(postId: string): Promise<{ success: boolean }> {
   const res = await apiClient.post<ApiResponse<{ success: boolean }>>(`/announcements/${postId}/like`);
+  return res.data.data;
+}
+
+export async function getConnectionMessages(requestId: string): Promise<ChatMessage[]> {
+  const res = await apiClient.get<ApiResponse<ChatMessage[]>>(`/connections/requests/${requestId}/messages`);
+  return res.data.data;
+}
+
+export async function sendConnectionMessage(
+  requestId: string,
+  text: string,
+  senderName?: string,
+  senderRole?: string,
+): Promise<ChatMessage> {
+  const res = await apiClient.post<ApiResponse<ChatMessage>>(`/connections/requests/${requestId}/messages`, {
+    text,
+    senderName,
+    senderRole,
+  });
   return res.data.data;
 }
