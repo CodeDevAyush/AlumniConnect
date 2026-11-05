@@ -161,4 +161,24 @@ export class AiClientService {
       throw error;
     }
   }
+
+  async validateProjectCodeQuality(payload: { repoUrl?: string; repoName?: string; targetTrack?: string }): Promise<any> {
+    try {
+      const response = await this.client.post('/api/v1/projects/quality-check', payload);
+      return response.data;
+    } catch (error: any) {
+      this.logger.error(`Project code quality validation failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async fetchUserGithubRepos(username: string): Promise<any> {
+    try {
+      const response = await this.client.get(`/api/v1/projects/user-repos/${encodeURIComponent(username)}`);
+      return response.data;
+    } catch (error: any) {
+      this.logger.error(`Fetching user github repos failed: ${error.message}`);
+      throw error;
+    }
+  }
 }

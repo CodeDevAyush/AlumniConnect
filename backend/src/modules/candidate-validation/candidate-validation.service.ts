@@ -6,8 +6,11 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { CandidateAssessmentStatus, CodingPlatform, Prisma } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 import { InMemoryPrototypeStore } from '../../database/in-memory-prototype.store';
 import { PrismaService } from '../../database/prisma.service';
+import { ProjectEvalService } from '../project-eval/project-eval.service';
 import { SaveValidationProfileDto } from './dto/save-validation-profile.dto';
 
 type GitHubUser = {
@@ -110,10 +113,15 @@ export class CandidateValidationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly prototypeStore: InMemoryPrototypeStore,
+    private readonly projectEvalService?: ProjectEvalService,
   ) {}
 
+  private isInMemoryActive(): boolean {
+    return process.env.PROTOTYPE_IN_MEMORY === 'true';
+  }
+
   async getMine(userId: string) {
-    if (process.env.PROTOTYPE_IN_MEMORY === 'true') {
+    if (this.isInMemoryActive()) {
       return this.prototypeStore.getValidationProfileWithLatestAssessment(userId) ?? null;
     }
 
@@ -128,9 +136,10 @@ export class CandidateValidationService {
       throw new BadRequestException('Consent is required before public profile data is assessed');
     }
 
-    if (process.env.PROTOTYPE_IN_MEMORY === 'true') {
+    if (this.isInMemoryActive() || process.env.PROTOTYPE_IN_MEMORY === 'true') {
       return this.prototypeStore.saveValidationProfile(userId, {
         githubUsername: dto.githubUsername.trim(),
+        topRepoUrl: dto.topRepoUrl?.trim(),
         codingPlatform: dto.codingPlatform,
         codingHandle: dto.codingHandle.trim(),
       });
@@ -155,7 +164,7 @@ export class CandidateValidationService {
   }
 
   async deleteProfile(userId: string) {
-    if (process.env.PROTOTYPE_IN_MEMORY === 'true') {
+    if (this.isInMemoryActive()) {
       return { deleted: this.prototypeStore.deleteValidationProfile(userId) };
     }
 
@@ -163,11 +172,12 @@ export class CandidateValidationService {
     return { deleted: result.count > 0 };
   }
 
-  async assess(userId: string) {
-    const profile =
-      process.env.PROTOTYPE_IN_MEMORY === 'true'
-        ? this.prototypeStore.getValidationProfile(userId)
-        : await this.prisma.candidateValidationProfile.findUnique({ where: { userId } });
+  async assess(userId: string, topRepoUrl?: string) {
+    const inMemory = this.isInMemoryActive();
+    const profile = inMemory
+      ? this.prototypeStore.getValidationProfile(userId)
+      : await this.prisma.candidateValidationProfile.findUnique({ where: { userId } });
+
     if (!profile) {
       throw new NotFoundException('Save your GitHub and coding profiles before assessment');
     }
@@ -209,8 +219,65 @@ export class CandidateValidationService {
         'This is a preliminary readiness signal, not a judgment of a person or an automatic rejection decision.',
     };
 
-    if (process.env.PROTOTYPE_IN_MEMORY === 'true') {
-      return this.prototypeStore.addAssessment({
+    // Evaluate Top Project Code Quality
+    const repoTarget = topRepoUrl?.trim() || (profile as any).topRepoUrl || '';
+    let topProjectEvaluation: any = null;
+    if (repoTarget && this.projectEvalService) {
+      try {
+        topProjectEvaluation = await this.projectEvalService.evaluate({ repoUrl: repoTarget });
+      } catch (err: any) {
+        topProjectEvaluation = {
+          error: err.message || 'Evaluation error',
+          repo: repoTarget,
+        };
+      }
+    }
+
+    // Persist full evaluation to server JSON file
+    const storageDir = path.join(process.cwd(), 'storage', 'evaluations');
+    if (!fs.existsSync(storageDir)) {
+      try {
+        fs.mkdirSync(storageDir, { recursive: true });
+      } catch {
+        // Continue
+      }
+    }
+    const timestamp = Date.now();
+    const storedJsonFilename = `evaluation_${userId}_${timestamp}.json`;
+    const storedJsonPath = path.join(storageDir, storedJsonFilename);
+    const latestPath = path.join(storageDir, `latest_${userId}.json`);
+
+    const fullEvaluationJson = {
+      studentId: userId,
+      evaluatedAt: new Date().toISOString(),
+      profile: {
+        githubUsername: profile.githubUsername,
+        codingPlatform: profile.codingPlatform,
+        codingHandle: profile.codingHandle,
+        topRepoUrl: repoTarget,
+      },
+      profileAssessment: {
+        status,
+        overallScore: score,
+        githubScore: github.score,
+        codingScore: coding.supported ? coding.score : null,
+        evidenceQualityScore,
+        evidence,
+      },
+      topProjectEvaluation,
+      modelTrainingFeatures: topProjectEvaluation?.modelTrainingFeatures ?? null,
+    };
+
+    try {
+      fs.writeFileSync(storedJsonPath, JSON.stringify(fullEvaluationJson, null, 2), 'utf-8');
+      fs.writeFileSync(latestPath, JSON.stringify(fullEvaluationJson, null, 2), 'utf-8');
+    } catch {
+      // Continue
+    }
+
+    let assessment: any;
+    if (inMemory) {
+      assessment = this.prototypeStore.addAssessment({
         userId,
         profileId: profile.id,
         status,
@@ -220,57 +287,92 @@ export class CandidateValidationService {
         evidenceQualityScore,
         ownershipVerified: false,
         evidence,
+        topProjectEvaluation,
+        storedJsonFilename,
+        storedJsonPath,
+      });
+    } else {
+      assessment = await this.prisma.candidateAssessment.create({
+        data: {
+          userId,
+          profileId: profile.id,
+          status,
+          score,
+          githubScore: github.score,
+          codingScore: coding.supported ? coding.score : null,
+          evidenceQualityScore,
+          ownershipVerified: false,
+          evidence,
+        },
       });
     }
 
-    const assessment = await this.prisma.candidateAssessment.create({
-      data: {
-        userId,
-        profileId: profile.id,
-        status,
-        score,
-        githubScore: github.score,
-        codingScore: coding.supported ? coding.score : null,
-        evidenceQualityScore,
-        ownershipVerified: false,
-        evidence,
-      },
-    });
+    return {
+      ...assessment,
+      topProjectEvaluation,
+      storedJsonFilename,
+      storedJsonPath,
+    };
+  }
 
-    return assessment;
+  getLatestEvaluationFile(userId: string): { filename: string; content: string } | null {
+    const latestPath = path.join(process.cwd(), 'storage', 'evaluations', `latest_${userId}.json`);
+    if (fs.existsSync(latestPath)) {
+      return {
+        filename: `evaluation_${userId}.json`,
+        content: fs.readFileSync(latestPath, 'utf-8'),
+      };
+    }
+    return null;
   }
 
   private async getGitHubEvidence(username: string): Promise<GitHubEvidence> {
-    const user = await this.getJson<GitHubUser>(
+    const user = await this.fetchJson<GitHubUser>(
       `https://api.github.com/users/${encodeURIComponent(username)}`,
       {
-        accept: 'application/vnd.github+json',
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'AlumniConnect-Candidate-Assessment',
       },
     );
-    const repositories = await this.getJson<GitHubRepository[]>(
-      `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated`,
-      { accept: 'application/vnd.github+json' },
+    const repositories = await this.fetchJson<GitHubRepository[]>(
+      `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100`,
+      {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'AlumniConnect-Candidate-Assessment',
+      },
     );
-    const recentCutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
-    const recentlyUpdatedRepositories = repositories.filter(
-      (repository) =>
-        repository.pushed_at !== null && Date.parse(repository.pushed_at) >= recentCutoff,
-    ).length;
-    const repositoriesWithDescriptions = repositories.filter((repository) =>
-      Boolean(repository.description?.trim()),
-    ).length;
+
+    const now = Date.now();
+    const ninetyDays = 90 * 24 * 60 * 60 * 1000;
+    const analyzedRepositories = Array.isArray(repositories) ? repositories.length : 0;
+    const recentlyUpdatedRepositories = Array.isArray(repositories)
+      ? repositories.filter((repository) => {
+          if (!repository.pushed_at) return false;
+          const pushed = new Date(repository.pushed_at).getTime();
+          return now - pushed <= ninetyDays;
+        }).length
+      : 0;
+    const repositoriesWithDescriptions = Array.isArray(repositories)
+      ? repositories.filter(
+          (repository) =>
+            typeof repository.description === 'string' && repository.description.trim().length > 0,
+        ).length
+      : 0;
+    const hasProfileBio = typeof user.bio === 'string' && user.bio.trim().length > 0;
+
+    const score =
+      this.repositoryCountScore(user.public_repos) +
+      this.recentActivityScore(recentlyUpdatedRepositories) +
+      this.descriptionScore(analyzedRepositories, repositoriesWithDescriptions) +
+      (hasProfileBio ? 5 : 0);
 
     return {
       publicRepositories: user.public_repos,
-      analyzedRepositories: repositories.length,
+      analyzedRepositories,
       recentlyUpdatedRepositories,
       repositoriesWithDescriptions,
-      hasProfileBio: Boolean(user.bio?.trim()),
-      score:
-        this.repositoryCountScore(user.public_repos) +
-        this.recentActivityScore(recentlyUpdatedRepositories) +
-        this.descriptionScore(repositories.length, repositoriesWithDescriptions) +
-        (user.bio?.trim() ? 5 : 0),
+      hasProfileBio,
+      score,
     };
   }
 
@@ -278,63 +380,94 @@ export class CandidateValidationService {
     platform: CodingPlatform,
     handle: string,
   ): Promise<CodingEvidence> {
-    if (platform === CodingPlatform.LEETCODE) {
-      return this.getLeetCodeEvidence(handle);
-    }
+    if (platform === 'CODEFORCES') {
+      const users = await this.fetchJson<CodeforcesUser[]>(
+        `https://codeforces.com/api/user.info?handles=${encodeURIComponent(handle)}`,
+        { 'User-Agent': 'AlumniConnect-Candidate-Assessment' },
+      );
+      if (!users.length) {
+        throw new NotFoundException(`Codeforces user ${handle} was not found`);
+      }
 
-    if (platform !== CodingPlatform.CODEFORCES) {
+      const submissions = await this.fetchJson<CodeforcesSubmission[]>(
+        `https://codeforces.com/api/user.status?handle=${encodeURIComponent(handle)}&count=100`,
+        { 'User-Agent': 'AlumniConnect-Candidate-Assessment' },
+      );
+      const rating = await this.fetchJson<CodeforcesContest[]>(
+        `https://codeforces.com/api/user.rating?handle=${encodeURIComponent(handle)}`,
+        { 'User-Agent': 'AlumniConnect-Candidate-Assessment' },
+      );
+
+      const accepted = new Set<string>();
+      for (const submission of submissions) {
+        if (submission.verdict === 'OK' && submission.problem) {
+          const key = `${submission.problem.contestId ?? 'none'}-${
+            submission.problem.index ?? submission.problem.name ?? 'unknown'
+          }`;
+          accepted.add(key);
+        }
+      }
+
+      const acceptedCount = accepted.size;
+      const contests = rating.length;
+      const score =
+        this.acceptedProblemScore(acceptedCount) +
+        this.contestScore(contests) +
+        this.ratingScore(users[0]?.rating);
+
       return {
-        supported: false,
-        platform,
-        reason:
-          'Automated public-data assessment is not implemented for this platform. Human review is required; no score is inferred.',
+        supported: true,
+        platform: 'CODEFORCES',
+        acceptedProblems: acceptedCount,
+        contests,
+        rating: users[0]?.rating ?? null,
+        score,
       };
     }
 
-    const [users, submissions, contests] = await Promise.all([
-      this.getJson<CodeforcesUser[]>(
-        `https://codeforces.com/api/user.info?handles=${encodeURIComponent(handle)}`,
-      ),
-      this.getJson<CodeforcesSubmission[]>(
-        `https://codeforces.com/api/user.status?handle=${encodeURIComponent(handle)}&from=1&count=10000`,
-      ),
-      this.getJson<CodeforcesContest[]>(
-        `https://codeforces.com/api/user.rating?handle=${encodeURIComponent(handle)}`,
-      ),
-    ]);
+    if (platform === 'LEETCODE') {
+      const stats = await this.fetchLeetCodeStats(handle);
+      const easyScore = this.leetCodeEasyScore(stats.Easy.solved);
+      const mediumScore = this.leetCodeMediumScore(stats.Medium.solved);
+      const hardScore = this.leetCodeHardScore(stats.Hard.solved);
+      const allAccepted =
+        stats.Easy.acceptedSubmissions +
+        stats.Medium.acceptedSubmissions +
+        stats.Hard.acceptedSubmissions;
+      const allTotal =
+        stats.Easy.totalSubmissions +
+        stats.Medium.totalSubmissions +
+        stats.Hard.totalSubmissions;
+      const weightedAcceptanceRate =
+        allTotal > 0 ? Number(((allAccepted / allTotal) * 100).toFixed(1)) : null;
+      const acceptanceRateBonus = this.leetCodeAcceptanceBonus(weightedAcceptanceRate);
+      const score = Math.min(easyScore + mediumScore + hardScore + acceptanceRateBonus, 45);
 
-    const user = users[0];
-    if (!user) {
-      throw new NotFoundException('Codeforces profile was not found');
+      return {
+        supported: true,
+        platform: 'LEETCODE',
+        difficultyStats: stats,
+        weightedAcceptanceRate,
+        scoreBreakdown: {
+          easySolved: easyScore,
+          mediumSolved: mediumScore,
+          hardSolved: hardScore,
+          acceptanceRateBonus,
+        },
+        score,
+      };
     }
 
-    const acceptedProblems = new Set(
-      submissions
-        .filter(
-          (submission) =>
-            submission.verdict === 'OK' && submission.problem?.index && submission.problem.name,
-        )
-        .map(
-          (submission) =>
-            `${submission.problem?.contestId ?? 'gym'}-${submission.problem?.index}-${submission.problem?.name}`,
-        ),
-    ).size;
-    const score =
-      this.acceptedProblemScore(acceptedProblems) +
-      this.ratingScore(user.rating) +
-      this.contestScore(contests.length);
-
     return {
-      supported: true,
+      supported: false,
       platform,
-      acceptedProblems,
-      contests: contests.length,
-      rating: user.rating ?? null,
-      score,
+      reason: `${platform} is saved for human review; no automated score is inferred`,
     };
   }
 
-  private async getLeetCodeEvidence(handle: string): Promise<CodingEvidence> {
+  private async fetchLeetCodeStats(
+    handle: string,
+  ): Promise<Record<LeetCodeDifficulty, LeetCodeDifficultyStats>> {
     const url = 'https://leetcode.com/graphql/';
     let response: Response;
     try {
@@ -390,82 +523,52 @@ export class CandidateValidationService {
         'LeetCode could not provide profile statistics; verify the handle and retry',
       );
     }
-    const matchedUser = body.data?.matchedUser;
-    if (matchedUser === null) {
-      throw new NotFoundException('LeetCode profile was not found');
+    if (!body.data?.matchedUser) {
+      throw new NotFoundException(`Public profile was not found for LeetCode user ${handle}`);
     }
 
-    const acceptedByDifficulty = matchedUser?.submitStats?.acSubmissionNum;
-    const totalsByDifficulty = matchedUser?.submitStats?.totalSubmissionNum;
-    if (!Array.isArray(acceptedByDifficulty) || !Array.isArray(totalsByDifficulty)) {
-      throw new BadGatewayException('LeetCode returned incomplete submission statistics');
-    }
-
-    const difficulties: LeetCodeDifficulty[] = ['Easy', 'Medium', 'Hard'];
-    const difficultyStats = {} as Record<LeetCodeDifficulty, LeetCodeDifficultyStats>;
-    for (const difficulty of difficulties) {
-      const accepted = acceptedByDifficulty.find((entry) => entry.difficulty === difficulty);
-      const total = totalsByDifficulty.find((entry) => entry.difficulty === difficulty);
-      const solved = accepted?.count;
-      const acceptedSubmissions = accepted?.submissions;
-      const totalSubmissions = total?.submissions;
-      if (
-        !Number.isInteger(solved) ||
-        !Number.isInteger(acceptedSubmissions) ||
-        !Number.isInteger(totalSubmissions) ||
-        solved! < 0 ||
-        acceptedSubmissions! < solved! ||
-        totalSubmissions! < acceptedSubmissions!
-      ) {
-        throw new BadGatewayException(
-          `LeetCode returned invalid ${difficulty.toLowerCase()} submission statistics`,
-        );
+    const acMap = new Map<string, { count: number; submissions: number }>();
+    for (const item of body.data.matchedUser.submitStats?.acSubmissionNum ?? []) {
+      if (item.difficulty && typeof item.count === 'number' && typeof item.submissions === 'number') {
+        acMap.set(item.difficulty, {
+          count: item.count,
+          submissions: item.submissions,
+        });
       }
-
-      difficultyStats[difficulty] = {
-        solved: solved!,
-        acceptedSubmissions: acceptedSubmissions!,
-        totalSubmissions: totalSubmissions!,
-        acceptanceRate:
-          totalSubmissions === 0 ? null : (acceptedSubmissions! / totalSubmissions!) * 100,
-      };
     }
 
-    const attemptsForRate = difficulties
-      .map((difficulty) => difficultyStats[difficulty])
-      .filter((stats) => stats.totalSubmissions >= 10);
-    const acceptedAttempts = attemptsForRate.reduce(
-      (sum, stats) => sum + stats.acceptedSubmissions,
-      0,
-    );
-    const totalAttempts = attemptsForRate.reduce((sum, stats) => sum + stats.totalSubmissions, 0);
-    const weightedAcceptanceRate =
-      totalAttempts === 0 ? null : (acceptedAttempts / totalAttempts) * 100;
+    const totalMap = new Map<string, number>();
+    for (const item of body.data.matchedUser.submitStats?.totalSubmissionNum ?? []) {
+      if (item.difficulty && typeof item.submissions === 'number') {
+        totalMap.set(item.difficulty, item.submissions);
+      }
+    }
 
-    const scoreBreakdown = {
-      easySolved: this.leetCodeEasyScore(difficultyStats.Easy.solved),
-      mediumSolved: this.leetCodeMediumScore(difficultyStats.Medium.solved),
-      hardSolved: this.leetCodeHardScore(difficultyStats.Hard.solved),
-      acceptanceRateBonus: this.leetCodeAcceptanceBonus(weightedAcceptanceRate),
+    const buildDifficulty = (difficulty: LeetCodeDifficulty): LeetCodeDifficultyStats => {
+      const ac = acMap.get(difficulty) ?? { count: 0, submissions: 0 };
+      const total = totalMap.get(difficulty) ?? 0;
+      const acceptanceRate =
+        total > 0 ? Number(((ac.submissions / total) * 100).toFixed(1)) : null;
+
+      return {
+        solved: ac.count,
+        acceptedSubmissions: ac.submissions,
+        totalSubmissions: total,
+        acceptanceRate,
+      };
     };
 
     return {
-      supported: true,
-      platform: 'LEETCODE',
-      difficultyStats,
-      weightedAcceptanceRate,
-      scoreBreakdown,
-      score: Object.values(scoreBreakdown).reduce((sum, points) => sum + points, 0),
+      Easy: buildDifficulty('Easy'),
+      Medium: buildDifficulty('Medium'),
+      Hard: buildDifficulty('Hard'),
     };
   }
 
-  private async getJson<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
+  private async fetchJson<T>(url: string, headers: Record<string, string>): Promise<T> {
     let response: Response;
     try {
-      response = await fetch(url, {
-        headers: { 'User-Agent': 'AlumniConnect-Candidate-Assessment', ...headers },
-        signal: AbortSignal.timeout(10_000),
-      });
+      response = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
     } catch (error) {
       throw new ServiceUnavailableException(
         `Unable to retrieve public evidence from ${new URL(url).hostname}: ${

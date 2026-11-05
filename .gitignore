@@ -75,6 +75,10 @@ frontend/.env.production
 backend/.env
 ai-service/.env
 
+# Storage
+backend/storage/evaluations/*.json
+uploads/
+
 # IDE and Editor directories
 .idea/
 .vscode/

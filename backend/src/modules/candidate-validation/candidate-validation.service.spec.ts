@@ -31,6 +31,7 @@ describe('CandidateValidationService', () => {
   };
 
   beforeEach(() => {
+    delete process.env.PROTOTYPE_IN_MEMORY;
     prisma = {
       candidateValidationProfile: { findUnique: jest.fn().mockResolvedValue(profile) },
       candidateAssessment: {

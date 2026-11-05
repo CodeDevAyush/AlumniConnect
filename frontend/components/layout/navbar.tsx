@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Users, Compass, Briefcase, GraduationCap, LogIn, ShieldCheck } from "lucide-react";
+import { Users, Compass, Briefcase, GraduationCap, LogIn, ShieldCheck, FileCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
@@ -44,6 +44,10 @@ export function Navbar() {
           <Link href="/candidate-validation" className="flex items-center gap-1.5 hover:text-brand-orange transition-colors">
             <ShieldCheck className="h-4 w-4" />
             Candidate Assessment
+          </Link>
+          <Link href="/project-eval" className="flex items-center gap-1.5 hover:text-brand-orange transition-colors">
+            <FileCode className="h-4 w-4" />
+            Project Quality
           </Link>
         </nav>
 

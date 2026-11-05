@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Post, Put, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CandidateValidationService } from './candidate-validation.service';
-import { SaveValidationProfileDto } from './dto/save-validation-profile.dto';
+import { AssessRequestDto, SaveValidationProfileDto } from './dto/save-validation-profile.dto';
 
 @ApiTags('Candidate validation')
 @ApiBearerAuth()
@@ -19,7 +20,7 @@ export class CandidateValidationController {
   }
 
   @Put('profiles')
-  @ApiOperation({ summary: 'Save public coding profiles and record assessment consent' })
+  @ApiOperation({ summary: 'Save public coding profiles, top project URL, and record assessment consent' })
   saveProfile(@CurrentUser('id') userId: string, @Body() dto: SaveValidationProfileDto) {
     return this.service.saveProfile(userId, dto);
   }
@@ -31,8 +32,20 @@ export class CandidateValidationController {
   }
 
   @Post('assessments')
-  @ApiOperation({ summary: 'Assess available public profile evidence for the signed-in user' })
-  assess(@CurrentUser('id') userId: string) {
-    return this.service.assess(userId);
+  @ApiOperation({ summary: 'Assess public profile evidence and top project code quality for the signed-in user' })
+  assess(@CurrentUser('id') userId: string, @Body() body?: AssessRequestDto) {
+    return this.service.assess(userId, body?.topRepoUrl);
+  }
+
+  @Get('evaluations/download-json')
+  @ApiOperation({ summary: 'Download the latest stored JSON evaluation data file' })
+  downloadJson(@CurrentUser('id') userId: string, @Res() res: Response) {
+    const file = this.service.getLatestEvaluationFile(userId);
+    if (!file) {
+      throw new NotFoundException('No evaluation JSON file found for current student. Please run an assessment first.');
+    }
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    res.send(file.content);
   }
 }

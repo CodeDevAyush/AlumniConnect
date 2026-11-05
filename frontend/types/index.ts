@@ -105,6 +105,7 @@ export interface CandidateValidationProfile {
   id: string;
   userId: string;
   githubUsername: string;
+  topRepoUrl?: string;
   codingPlatform: CodingPlatform;
   codingHandle: string;
   consentAt: string;
@@ -136,6 +137,9 @@ export interface CandidateAssessment {
   ownershipVerified: boolean;
   evidence: CandidateAssessmentEvidence;
   assessedAt: string;
+  topProjectEvaluation?: any;
+  storedJsonFilename?: string;
+  storedJsonPath?: string;
 }
 
 export interface ConnectionEligibility {

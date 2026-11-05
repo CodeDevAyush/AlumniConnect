@@ -36,6 +36,9 @@ class Settings:
     # External APIs & AI Model Credentials
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GITHUB_PERSONAL_ACCESS_TOKEN: str = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN", "")
+    SEMGREP_APP_TOKEN: str = os.getenv("SEMGREP_APP_TOKEN", "")
+    SONARQUBE_TOKEN: str = os.getenv("SONARQUBE_TOKEN", "")
+    SONARQUBE_HOST_URL: str = os.getenv("SONARQUBE_HOST_URL", "https://sonarcloud.io")
 
     # Storage & Cache
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")

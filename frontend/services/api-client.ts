@@ -14,7 +14,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/a
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -82,6 +82,11 @@ export async function loginAccount(input: {
   return res.data.data;
 }
 
+export async function evaluateProject(repoUrl: string) {
+  const res = await apiClient.post<ApiResponse<any>>("/project-eval", { repoUrl });
+  return res.data.data ?? res.data;
+}
+
 export async function getCandidateValidationProfile(): Promise<CandidateValidationProfile | null> {
   const res = await apiClient.get<ApiResponse<CandidateValidationProfile | null>>(
     "/candidate-validation/me",
@@ -91,6 +96,7 @@ export async function getCandidateValidationProfile(): Promise<CandidateValidati
 
 export async function saveCandidateValidationProfile(input: {
   githubUsername: string;
+  topRepoUrl?: string;
   codingPlatform: CodingPlatform;
   codingHandle: string;
   consent: true;
@@ -109,11 +115,19 @@ export async function deleteCandidateValidationProfile(): Promise<{ deleted: boo
   return res.data.data;
 }
 
-export async function assessCandidate(): Promise<CandidateAssessment> {
+export async function assessCandidate(input?: { topRepoUrl?: string }): Promise<CandidateAssessment> {
   const res = await apiClient.post<ApiResponse<CandidateAssessment>>(
     "/candidate-validation/assessments",
+    input ?? {},
   );
   return res.data.data;
+}
+
+export async function downloadLatestEvaluationJson(): Promise<Blob> {
+  const res = await apiClient.get("/candidate-validation/evaluations/download-json", {
+    responseType: "blob",
+  });
+  return res.data;
 }
 
 export async function getConnectionEligibility(): Promise<ConnectionEligibility> {

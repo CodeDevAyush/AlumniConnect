@@ -27,6 +27,7 @@ import { AnnouncementsModule } from './modules/announcements/announcements.modul
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CandidateValidationModule } from './modules/candidate-validation/candidate-validation.module';
+import { ProjectEvalModule } from './modules/project-eval/project-eval.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { CandidateValidationModule } from './modules/candidate-validation/candid
     NotificationsModule,
     AdminModule,
     CandidateValidationModule,
+    ProjectEvalModule,
   ],
   providers: [
     {

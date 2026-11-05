@@ -16,6 +16,7 @@ export interface PrototypeValidationProfile {
   id: string;
   userId: string;
   githubUsername: string;
+  topRepoUrl?: string;
   codingPlatform: CodingPlatform;
   codingHandle: string;
   consentAt: Date;
@@ -35,6 +36,9 @@ export interface PrototypeAssessment {
   ownershipVerified: false;
   evidence: Prisma.InputJsonObject;
   assessedAt: Date;
+  topProjectEvaluation?: any;
+  storedJsonFilename?: string;
+  storedJsonPath?: string;
 }
 
 export interface PrototypeConnectionRequest {
@@ -126,7 +130,9 @@ export class InMemoryPrototypeStore implements OnModuleInit {
 
   saveValidationProfile(
     userId: string,
-    input: Pick<PrototypeValidationProfile, 'githubUsername' | 'codingPlatform' | 'codingHandle'>,
+    input: Pick<PrototypeValidationProfile, 'githubUsername' | 'codingPlatform' | 'codingHandle'> & {
+      topRepoUrl?: string;
+    },
   ): PrototypeValidationProfile {
     const current = this.profilesByUserId.get(userId);
     const now = new Date();
