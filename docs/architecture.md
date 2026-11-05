@@ -81,6 +81,14 @@ AlumniConnect/
   - Computes TF-IDF vector similarity and semantic overlap for student-alumni pairing.
   - Protected behind an internal secret key header (`X-Internal-API-Key`); never exposed directly to client browsers.
 
+> **Current implementation status:** The AI service is scaffolded, but it does not currently provide the operational service described above. Candidate profile assessment is implemented in NestJS and does not call FastAPI.
+
+### 3.4. Candidate profile assessment
+- **Location**: `backend/src/modules/candidate-validation/`
+- **Responsibility**: Stores authenticated users' consented GitHub/coding handles, fetches public evidence from GitHub and Codeforces, applies a transparent pilot rubric, and persists timestamped evidence snapshots.
+- **Limitations**: Profile ownership is not verified. Automated coding-profile scoring currently supports Codeforces only; other listed platforms require manual review. Scores are readiness signals, not automatic decisions.
+- **Routes**: See `docs/api-contracts.md` and the detailed rubric in `docs/candidate-validation.md`.
+
 ---
 
 ## 4. Communication & Security Architecture

@@ -51,6 +51,21 @@ erDiagram
 
 ## 4. Migration & Seeding Workflow
 
+The repository includes an initial PostgreSQL migration at
+`backend/prisma/migrations/20261105110000_initial_schema/`. It creates the complete current schema,
+including candidate-validation profile and assessment tables. For a fresh local database, run:
+
+```bash
+cd backend
+npx prisma migrate deploy
+npm run prisma:seed
+```
+
+If you already have a database created from an earlier, untracked schema migration or `db push`,
+do not blindly apply or mark the initial migration as applied. First compare the actual database
+schema with the committed Prisma schema and decide how to baseline it; the initial migration is
+intended for a fresh database.
+
 ### Generating New Migrations:
 ```bash
 cd backend

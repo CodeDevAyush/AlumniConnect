@@ -183,6 +183,7 @@ For platform-specific shell scripts:
 - 🔑 [Environment Variables Reference](docs/environment-variables.md)
 - 🗄️ [Database Architecture & Migrations](docs/database-guide.md)
 - 📡 [API Contracts & Security](docs/api-contracts.md)
+- ✅ [Candidate Profile Assessment](docs/candidate-validation.md)
 - 🔄 [CI/CD Automation Pipelines](docs/ci-cd.md)
 
 ---
