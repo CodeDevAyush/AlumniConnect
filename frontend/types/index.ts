@@ -137,3 +137,18 @@ export interface CandidateAssessment {
   evidence: CandidateAssessmentEvidence;
   assessedAt: string;
 }
+
+export interface ConnectionEligibility {
+  eligible: boolean;
+  latestScore: number | null;
+  requiredScore: number;
+  requirement: string;
+}
+
+export interface ConnectionRequest {
+  id: string;
+  requesterId: string;
+  receiverId: string;
+  status: "PENDING" | "ACCEPTED" | "DECLINED" | "BLOCKED";
+  createdAt: string;
+}

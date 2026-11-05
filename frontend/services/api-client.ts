@@ -5,6 +5,8 @@ import {
   CandidateAssessment,
   CandidateValidationProfile,
   CodingPlatform,
+  ConnectionEligibility,
+  ConnectionRequest,
   UserRole,
 } from "@/types";
 
@@ -111,5 +113,22 @@ export async function assessCandidate(): Promise<CandidateAssessment> {
   const res = await apiClient.post<ApiResponse<CandidateAssessment>>(
     "/candidate-validation/assessments",
   );
+  return res.data.data;
+}
+
+export async function getConnectionEligibility(): Promise<ConnectionEligibility> {
+  const res = await apiClient.get<ApiResponse<ConnectionEligibility>>("/connections/eligibility");
+  return res.data.data;
+}
+
+export async function requestAlumniConnection(receiverId: string): Promise<ConnectionRequest> {
+  const res = await apiClient.post<ApiResponse<ConnectionRequest>>("/connections/requests", {
+    receiverId,
+  });
+  return res.data.data;
+}
+
+export async function getMyConnections(): Promise<ConnectionRequest[]> {
+  const res = await apiClient.get<ApiResponse<ConnectionRequest[]>>("/connections/me");
   return res.data.data;
 }

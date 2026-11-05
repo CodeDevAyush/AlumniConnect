@@ -88,7 +88,29 @@ See [candidate-validation.md](./candidate-validation.md) for the current scoring
 
 ---
 
-## 5. NestJS Intelligence Endpoints (`/api/v1/intelligence`)
+## 5. Connections (`/api/v1/connections`)
+
+All connection routes require a valid access token. The requester ID is always taken from the JWT.
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/connections/eligibility` | Return the signed-in user's latest assessment score and whether it is greater than 80 |
+| `GET` | `/api/v1/connections/me` | List the signed-in user's connection requests/connections |
+| `POST` | `/api/v1/connections/requests` | Send a pending connection request to an active alumni account |
+
+Request body:
+
+```json
+{
+  "receiverId": "alumni-user-uuid"
+}
+```
+
+The backend permits a request only when the signed-in user's latest assessment score is **strictly greater than 80** (81+); a score of exactly 80, missing assessment, or unsupported/manual-review score is not eligible. The backend enforces this independently of the frontend. Duplicate or reversed existing requests are rejected. In database-free prototype mode, requests are held in memory and target the three demo alumni cards; they disappear when the backend restarts.
+
+---
+
+## 6. NestJS Intelligence Endpoints (`/api/v1/intelligence`)
 
 | Method | Endpoint | Description | Auth |
 | :--- | :--- | :--- | :--- |
@@ -102,7 +124,7 @@ See [candidate-validation.md](./candidate-validation.md) for the current scoring
 
 ---
 
-## 6. FastAPI Intelligence Engine Endpoints (`/api/v1`)
+## 7. FastAPI Intelligence Engine Endpoints (`/api/v1`)
 
 | Method | Endpoint | Description | Header Required |
 | :--- | :--- | :--- | :--- |
@@ -119,6 +141,6 @@ See [candidate-validation.md](./candidate-validation.md) for the current scoring
 
 ---
 
-## 7. Security & Internal API Authentication
+## 8. Security & Internal API Authentication
 
 All calls from NestJS to FastAPI MUST pass the `X-Internal-API-Key` header matching `INTERNAL_API_SECRET_KEY`. Requests without this key are rejected with HTTP 401. Credentials are never sent to client browsers.

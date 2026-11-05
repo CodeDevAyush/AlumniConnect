@@ -1,10 +1,23 @@
 "use client";
 
-import { Users, UserCheck } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Users } from "lucide-react";
+import { Card, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { getMyConnections } from "@/services/api-client";
+import { ConnectionRequest } from "@/types";
 
 export default function ConnectionsPage() {
+  const [requests, setRequests] = useState<ConnectionRequest[]>([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getMyConnections()
+      .then(setRequests)
+      .catch(() => setError("Sign in to view your connection requests."));
+  }, []);
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="pb-6 border-b border-slate-200">
@@ -13,6 +26,28 @@ export default function ConnectionsPage() {
       </div>
 
       <div className="mt-8">
+        {error ? (
+          <Card className="py-12 text-center">
+            <CardContent>
+              <CardTitle className="text-lg">Sign in required</CardTitle>
+              <CardDescription className="mt-1">{error}</CardDescription>
+              <Link href="/login">
+                <Button className="mt-6">Sign In</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : requests.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {requests.map((request) => (
+              <Card key={request.id} className="p-5">
+                <CardTitle className="text-base">Alumni connection request</CardTitle>
+                <CardDescription className="mt-2">
+                  Status: {request.status.toLowerCase()}
+                </CardDescription>
+              </Card>
+            ))}
+          </div>
+        ) : (
         <Card className="text-center py-12">
           <CardContent className="flex flex-col items-center">
             <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-4">
@@ -27,6 +62,7 @@ export default function ConnectionsPage() {
             </Button>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

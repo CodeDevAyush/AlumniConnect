@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Search, Building, MapPin, Sparkles, Filter, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  getConnectionEligibility,
+  getMyConnections,
+  requestAlumniConnection,
+} from "@/services/api-client";
+import { ConnectionEligibility } from "@/types";
 
 const MOCK_ALUMNI = [
   {
-    id: "1",
+    id: "00000000-0000-4000-8000-000000000001",
     name: "Sarah Chen",
     company: "Google",
     title: "Senior Staff Software Engineer",
@@ -21,7 +28,7 @@ const MOCK_ALUMNI = [
     willingToRefer: true,
   },
   {
-    id: "2",
+    id: "00000000-0000-4000-8000-000000000002",
     name: "Marcus Vance",
     company: "Stripe",
     title: "Lead Infrastructure Engineer",
@@ -33,7 +40,7 @@ const MOCK_ALUMNI = [
     willingToRefer: false,
   },
   {
-    id: "3",
+    id: "00000000-0000-4000-8000-000000000003",
     name: "Priya Sharma",
     company: "Meta",
     title: "Machine Learning Engineer",
@@ -48,6 +55,54 @@ const MOCK_ALUMNI = [
 
 export default function DiscoveryPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [eligibility, setEligibility] = useState<ConnectionEligibility | null>(null);
+  const [eligibilityError, setEligibilityError] = useState("");
+  const [requestingId, setRequestingId] = useState<string | null>(null);
+  const [requestedIds, setRequestedIds] = useState<string[]>([]);
+  const [requestError, setRequestError] = useState("");
+  const [requestMessage, setRequestMessage] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    getConnectionEligibility()
+      .then((result) => {
+        if (active) setEligibility(result);
+      })
+      .catch(() => {
+        if (active) setEligibilityError("Sign in to check connection eligibility.");
+      });
+    getMyConnections()
+      .then((connections) => {
+        if (active) {
+          setRequestedIds(
+            connections
+              .filter((connection) => connection.status === "PENDING")
+              .map((connection) => connection.receiverId),
+          );
+        }
+      })
+      .catch(() => {
+        if (active) setEligibilityError("Sign in to check connection eligibility.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleConnect(receiverId: string) {
+    setRequestError("");
+    setRequestMessage("");
+    setRequestingId(receiverId);
+    try {
+      await requestAlumniConnection(receiverId);
+      setRequestedIds((current) => [...current, receiverId]);
+      setRequestMessage("Connection request sent.");
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : "Could not send connection request.");
+    } finally {
+      setRequestingId(null);
+    }
+  }
 
   const filteredAlumni = MOCK_ALUMNI.filter(
     (a) =>
@@ -70,6 +125,43 @@ export default function DiscoveryPage() {
           </Badge>
         </div>
       </div>
+
+      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-sm">
+        {eligibility ? (
+          eligibility.eligible ? (
+            <p className="text-emerald-800">
+              Eligible to connect: your latest assessment score is {eligibility.latestScore}/100.
+            </p>
+          ) : (
+            <p className="text-slate-700">
+              An assessment score greater than 80 is required to send connection requests.
+              {eligibility.latestScore !== null
+                ? ` Your latest score is ${eligibility.latestScore}/100.`
+                : " Complete a profile assessment first."}{" "}
+              <Link href="/candidate-validation" className="font-semibold text-brand-orange underline">
+                Go to candidate assessment
+              </Link>
+            </p>
+          )
+        ) : (
+          <p role={eligibilityError ? "alert" : "status"} className="text-slate-700">
+            {eligibilityError || "Checking connection eligibility..."}
+            {eligibilityError && (
+              <>
+                {" "}
+                <Link href="/login" className="font-semibold text-brand-orange underline">
+                  Sign in
+                </Link>
+              </>
+            )}
+          </p>
+        )}
+      </div>
+      {(requestError || requestMessage) && (
+        <p role={requestError ? "alert" : "status"} className={requestError ? "text-sm text-red-600" : "text-sm text-emerald-700"}>
+          {requestError || requestMessage}
+        </p>
+      )}
 
       {/* Search and Filters */}
       <div className="mt-6 flex flex-col sm:flex-row gap-4">
@@ -135,8 +227,22 @@ export default function DiscoveryPage() {
               <Button size="sm" variant="outline" className="w-full">
                 View Profile
               </Button>
-              <Button size="sm" className="w-full">
-                Connect
+              <Button
+                size="sm"
+                className="w-full"
+                disabled={!eligibility?.eligible || requestingId !== null || requestedIds.includes(alumni.id)}
+                onClick={() => handleConnect(alumni.id)}
+                title={
+                  eligibility?.eligible
+                    ? "Send a connection request"
+                    : "Requires a latest assessment score greater than 80"
+                }
+              >
+                {requestedIds.includes(alumni.id)
+                  ? "Requested"
+                  : requestingId === alumni.id
+                    ? "Sending..."
+                    : "Connect"}
               </Button>
             </CardFooter>
           </Card>

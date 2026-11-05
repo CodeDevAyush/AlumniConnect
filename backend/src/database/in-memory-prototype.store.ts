@@ -37,12 +37,27 @@ export interface PrototypeAssessment {
   assessedAt: Date;
 }
 
+export interface PrototypeConnectionRequest {
+  id: string;
+  requesterId: string;
+  receiverId: string;
+  status: 'PENDING';
+  createdAt: Date;
+}
+
+export const PROTOTYPE_ALUMNI_IDS = [
+  '00000000-0000-4000-8000-000000000001',
+  '00000000-0000-4000-8000-000000000002',
+  '00000000-0000-4000-8000-000000000003',
+] as const;
+
 @Injectable()
 export class InMemoryPrototypeStore implements OnModuleInit {
   private readonly usersById = new Map<string, PrototypeUser>();
   private readonly userIdsByEmail = new Map<string, string>();
   private readonly profilesByUserId = new Map<string, PrototypeValidationProfile>();
   private readonly assessmentsByUserId = new Map<string, PrototypeAssessment[]>();
+  private readonly connectionsByUserId = new Map<string, PrototypeConnectionRequest[]>();
 
   async onModuleInit() {
     const salt = await bcrypt.genSalt(10);
@@ -140,5 +155,28 @@ export class InMemoryPrototypeStore implements OnModuleInit {
     assessments.push(saved);
     this.assessmentsByUserId.set(assessment.userId, assessments);
     return saved;
+  }
+
+  getLatestAssessmentScore(userId: string): number | null {
+    const assessments = this.assessmentsByUserId.get(userId) ?? [];
+    return assessments[assessments.length - 1]?.score ?? null;
+  }
+
+  addConnectionRequest(requesterId: string, receiverId: string): PrototypeConnectionRequest {
+    const requests = this.connectionsByUserId.get(requesterId) ?? [];
+    const request: PrototypeConnectionRequest = {
+      id: randomUUID(),
+      requesterId,
+      receiverId,
+      status: 'PENDING',
+      createdAt: new Date(),
+    };
+    requests.push(request);
+    this.connectionsByUserId.set(requesterId, requests);
+    return request;
+  }
+
+  getConnectionRequests(userId: string): PrototypeConnectionRequest[] {
+    return [...(this.connectionsByUserId.get(userId) ?? [])];
   }
 }
