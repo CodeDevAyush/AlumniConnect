@@ -198,12 +198,14 @@ export default function CommunityPage() {
               ? "Share Mentor Update"
               : "Share Student Update"}
           </Button>
-          <Link href="/discovery">
-            <Button variant="outline" className="gap-1.5">
-              <span>Find Mentors</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
+          {!isAlumni && (
+            <Link href="/discovery">
+              <Button variant="outline" className="gap-1.5">
+                <span>Find Mentors</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 

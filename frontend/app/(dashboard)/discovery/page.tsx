@@ -96,6 +96,7 @@ export default function DiscoveryPage() {
   const [requestMessage, setRequestMessage] = useState("");
 
   const currentUser = getCurrentUser();
+  const isAlumni = currentUser?.role === "ALUMNI";
 
   useEffect(() => {
     let active = true;
@@ -183,9 +184,30 @@ export default function DiscoveryPage() {
         </div>
       </div>
 
-      {/* Candidate Rating Gate Card (80+ Threshold Status) */}
+      {/* Rating Gate Card for Students / Peer Network Welcome for Alumni */}
       <div className="rounded-xl border shadow-sm overflow-hidden">
-        {eligibility ? (
+        {isAlumni ? (
+          <div className="bg-gradient-to-r from-purple-50 via-indigo-50/60 to-slate-50 border-purple-200 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-purple-600 flex items-center justify-center text-white shrink-0 shadow-md">
+                <Building className="h-6 w-6" />
+              </div>
+              <div>
+                <span className="font-extrabold text-slate-900 text-lg">
+                  Alumni Peer Directory
+                </span>
+                <p className="text-sm text-slate-600 mt-1 max-w-2xl">
+                  Explore verified colleagues and fellow alumni engineers across Google, Stripe, and Meta.
+                </p>
+              </div>
+            </div>
+            <Link href="/connections">
+              <Button className="bg-purple-600 hover:bg-purple-700 text-white text-xs whitespace-nowrap">
+                Review Candidate Requests
+              </Button>
+            </Link>
+          </div>
+        ) : eligibility ? (
           isScoreUnlocked ? (
             <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 border-emerald-300 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="flex items-start gap-4">
@@ -399,43 +421,51 @@ export default function DiscoveryPage() {
               </CardContent>
 
               <CardFooter className="pt-3 border-t border-slate-100 flex gap-2">
-                <Button size="sm" variant="outline" className="w-1/2 text-xs">
-                  View Profile
-                </Button>
-
-                {alumni.isTopTier && !isScoreUnlocked ? (
-                  <Link href="/candidate-validation" className="w-1/2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="w-full text-xs gap-1 border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
-                      title="An assessment rating of 80+ is required to connect with Top Alumni"
-                    >
-                      <Lock className="h-3 w-3 text-amber-600" />
-                      <span>80+ Needed</span>
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button
-                    size="sm"
-                    className={`w-1/2 text-xs font-semibold ${
-                      isScoreUnlocked
-                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                        : "bg-blue-600 hover:bg-blue-700 text-white"
-                    }`}
-                    disabled={isRequested || isRequesting}
-                    onClick={() => handleConnect(alumni.id)}
-                  >
-                    {isRequested ? (
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Requested
-                      </span>
-                    ) : isRequesting ? (
-                      "Sending..."
-                    ) : (
-                      "Connect"
-                    )}
+                {isAlumni ? (
+                  <Button size="sm" variant="outline" className="w-full text-xs hover:border-purple-300 hover:text-purple-700">
+                    View Colleague Profile
                   </Button>
+                ) : (
+                  <>
+                    <Button size="sm" variant="outline" className="w-1/2 text-xs">
+                      View Profile
+                    </Button>
+
+                    {alumni.isTopTier && !isScoreUnlocked ? (
+                      <Link href="/candidate-validation" className="w-1/2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="w-full text-xs gap-1 border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                          title="An assessment rating of 80+ is required to connect with Top Alumni"
+                        >
+                          <Lock className="h-3 w-3 text-amber-600" />
+                          <span>80+ Needed</span>
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className={`w-1/2 text-xs font-semibold ${
+                          isScoreUnlocked
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                        }`}
+                        disabled={isRequested || isRequesting}
+                        onClick={() => handleConnect(alumni.id)}
+                      >
+                        {isRequested ? (
+                          <span className="flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" /> Requested
+                          </span>
+                        ) : isRequesting ? (
+                          "Sending..."
+                        ) : (
+                          "Connect"
+                        )}
+                      </Button>
+                    )}
+                  </>
                 )}
               </CardFooter>
             </Card>
