@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -25,9 +26,20 @@ import { useSidebar } from "./sidebar-context";
 export function Sidebar() {
   const pathname = usePathname();
   const { isOpen, closeSidebar } = useSidebar();
-  const user = getCurrentUser();
+  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
-  if (!user) return null;
+  useEffect(() => {
+    setMounted(true);
+    const sync = () => {
+      setUser(getCurrentUser());
+    };
+    sync();
+    window.addEventListener("alumniconnect_auth_change", sync);
+    return () => window.removeEventListener("alumniconnect_auth_change", sync);
+  }, []);
+
+  if (!mounted || !user) return null;
 
   const isStudent = user.role === "STUDENT";
   const isAlumni = user.role === "ALUMNI";
@@ -231,7 +243,7 @@ export function Sidebar() {
                     : user.email}
                 </span>
                 <span className="text-[10px] text-slate-500 font-medium truncate">
-                  View LeetCode Profile
+                  View AlumniConnect Profile
                 </span>
               </div>
             </div>
@@ -242,3 +254,4 @@ export function Sidebar() {
     </>
   );
 }
+

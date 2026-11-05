@@ -125,7 +125,7 @@ export function Navbar() {
             <div className="flex items-center gap-2 shrink-0">
               <Link
                 href="/profile"
-                title="View LeetCode-Style Profile"
+                title="View AlumniConnect Profile"
                 className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 sm:px-3 py-1 text-xs shrink-0 hover:bg-blue-50/70 hover:border-blue-300 transition-all cursor-pointer group shadow-2xs"
               >
                 <div
