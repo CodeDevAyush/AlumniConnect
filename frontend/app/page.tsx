@@ -26,7 +26,7 @@ export default function Home() {
 
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-6xl max-w-4xl mx-auto">
             Your Campus Network,{" "}
-            <span className="text-blue-600 underline decoration-blue-200 underline-offset-8">
+            <span className="text-brand-orange underline decoration-brand-gold underline-offset-8">
               Activated.
             </span>
           </h1>

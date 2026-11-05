@@ -38,6 +38,10 @@ export default function CandidateValidationPage() {
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const leetCodeStats =
+    assessment?.evidence.codingProfile?.platform === "LEETCODE"
+      ? assessment.evidence.codingProfile.difficultyStats
+      : undefined;
 
   useEffect(() => {
     let active = true;
@@ -224,8 +228,8 @@ export default function CandidateValidationPage() {
           <CardHeader>
             <CardTitle>Assessment</CardTitle>
             <CardDescription>
-              Automated evidence collection is available for GitHub and Codeforces. Other coding
-              platforms are saved for human review; no unsupported score is inferred.
+              Automated evidence collection is available for GitHub, Codeforces, and LeetCode.
+              Other coding platforms are saved for human review; no unsupported score is inferred.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -273,6 +277,48 @@ export default function CandidateValidationPage() {
                     </dd>
                   </div>
                 </dl>
+                {leetCodeStats && (
+                  <div className="overflow-x-auto">
+                    <h3 className="mb-2 text-sm font-semibold text-slate-800">
+                      LeetCode by difficulty
+                    </h3>
+                    <table className="w-full min-w-[28rem] text-left text-xs">
+                      <thead className="text-slate-500">
+                        <tr>
+                          <th className="pb-2 pr-3 font-medium">Difficulty</th>
+                          <th className="pb-2 pr-3 font-medium">Solved</th>
+                          <th className="pb-2 pr-3 font-medium">Accepted / attempts</th>
+                          <th className="pb-2 font-medium">Acceptance rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(["Easy", "Medium", "Hard"] as const).map((difficulty) => {
+                          const stats = leetCodeStats[difficulty];
+                          return (
+                            <tr key={difficulty} className="border-t border-slate-200">
+                              <th className="py-2 pr-3 font-medium text-slate-700">{difficulty}</th>
+                              <td className="py-2 pr-3">{stats?.solved ?? "Unknown"}</td>
+                              <td className="py-2 pr-3">
+                                {stats
+                                  ? `${stats.acceptedSubmissions} / ${stats.totalSubmissions}`
+                                  : "Unknown"}
+                              </td>
+                              <td className="py-2">
+                                {stats?.acceptanceRate === null || !stats
+                                  ? "No attempts"
+                                  : `${stats.acceptanceRate.toFixed(1)}%`}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Acceptance rate is accepted submissions divided by total submissions. It
+                      adds at most 3 points and never reduces points for solved problems.
+                    </p>
+                  </div>
+                )}
                 <p className="text-xs text-slate-600">
                   Assessment date: {new Date(assessment.assessedAt).toLocaleString()}
                 </p>

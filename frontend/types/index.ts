@@ -111,6 +111,21 @@ export interface CandidateValidationProfile {
   assessments?: CandidateAssessment[];
 }
 
+export interface LeetCodeDifficultyStats {
+  solved: number;
+  acceptedSubmissions: number;
+  totalSubmissions: number;
+  acceptanceRate: number | null;
+}
+
+export interface CandidateAssessmentEvidence extends Record<string, unknown> {
+  codingProfile?: Record<string, unknown> & {
+    platform?: CodingPlatform;
+    supported?: boolean;
+    difficultyStats?: Partial<Record<"Easy" | "Medium" | "Hard", LeetCodeDifficultyStats>>;
+  };
+}
+
 export interface CandidateAssessment {
   id: string;
   status: CandidateAssessmentStatus;
@@ -119,6 +134,6 @@ export interface CandidateAssessment {
   codingScore: number | null;
   evidenceQualityScore: number | null;
   ownershipVerified: boolean;
-  evidence: Record<string, unknown>;
+  evidence: CandidateAssessmentEvidence;
   assessedAt: string;
 }

@@ -22,7 +22,7 @@ All candidate-validation routes require `Authorization: Bearer <accessToken>`. T
 
 The public APIs provide profile and activity data; **they do not return an AlumniConnect score**. The backend fetches public data on demand, applies the point rules below, stores the data and score breakdown as an evidence snapshot, and adds the components together. We do not request external platform passwords or tokens, and no API key is required for these public-data requests. Unauthenticated GitHub API requests are subject to GitHub's rate limits.
 
-The automated total is out of 100: GitHub (45) + Codeforces (45) + evidence availability (10). Each category is threshold-based: meeting a threshold earns the listed points for that signal, and falling below its first threshold earns 0. Points within a signal do not accumulate across thresholds.
+The automated total is out of 100: GitHub (45) + the selected coding profile (45) + evidence availability (10). Each category is threshold-based: meeting a threshold earns the listed points for that signal, and falling below its first threshold earns 0. Points within a signal do not accumulate across thresholds.
 
 ### GitHub (45 points)
 
@@ -49,15 +49,26 @@ For a Codeforces handle, the backend requests the public user record, the latest
 
 Repeated accepted submissions for the same problem count once. The service identifies a problem using its contest ID, index, and name. An absent rating earns 0 rating points. This is a coarse pilot rubric, not a platform-independent ranking; different coding platforms use incompatible metrics.
 
-### Evidence availability (10 points)
+### LeetCode (45 points)
 
-The backend adds 10 points when both GitHub evidence and supported Codeforces evidence are successfully retrieved and assessed. Provider/network errors, missing profiles, or rate limits fail the assessment with an API error; they are not silently converted into 0 points.
+For a LeetCode handle, the backend sends a public GraphQL profile query to `https://leetcode.com/graphql/`. The public response provides unique problems solved and submission counts by difficulty; it does not provide an AlumniConnect score. No LeetCode password, session cookie, or API key is requested. This endpoint is not a versioned public contract, so LeetCode may change or restrict it; failures are reported rather than worked around.
 
-If the selected coding platform is not yet supported for automated scoring (for example, LeetCode, HackerRank, or CodeChef), the backend still assesses GitHub, but sets the coding score and evidence-availability score to null. It returns `MANUAL_REVIEW` and no overall score rather than treating missing support as a zero.
+| Signal derived from LeetCode data | Threshold | Points |
+| --- | --- | ---: |
+| Unique Easy problems solved | 1 / 25 / 75+ | 1 / 3 / 5 |
+| Unique Medium problems solved | 1 / 10 / 40+ | 4 / 8 / 12 |
+| Unique Hard problems solved | 1 / 3 / 10+ | 8 / 15 / 25 |
+| Weighted submission acceptance rate, using difficulty bands with at least 10 attempts | 40% / 60% / 80%+ | 1 / 2 / 3 |
+
+Solved-problem points are based on unique accepted problems. Acceptance rate is accepted submissions divided by total submissions, not the percentage of distinct attempted problems eventually solved. It is reported separately for Easy, Medium, and Hard. It contributes at most 3 points and never subtracts points, so solving more Hard problems can outweigh a higher acceptance rate with few Hard solves. Difficulty stats must all be present for an automated LeetCode assessment; zero attempts produce a null rate, not an error.
+
+The backend adds 10 evidence-availability points when GitHub evidence and supported coding-profile evidence are both successfully retrieved and assessed. Provider/network errors, missing profiles, or rate limits fail the assessment with an API error; they are not silently converted into 0 points.
+
+For platforms that are still unsupported (HackerRank and CodeChef), GitHub is assessed, but the coding score and evidence-availability score are null. The result is `MANUAL_REVIEW` with no overall score rather than treating missing support as a zero.
 
 ### Example calculation
 
-Suppose the fetched GitHub evidence earns 30/45, the Codeforces evidence earns 25/45, and both providers returned usable evidence. The overall result is `30 + 25 + 10 = 65/100`, which maps to `DEVELOPING`. The score is a result of these project-defined rules, not an official rating from either platform.
+Suppose the fetched GitHub evidence earns 30/45, and a LeetCode profile earns 5 Easy, 8 Medium, 25 Hard, and 1 acceptance-rate point (39/45). With both providers returning usable evidence, the overall result is `30 + 39 + 10 = 79/100`, which maps to `READY_FOR_REVIEW`. The score is a result of project-defined rules, not an official rating from either platform.
 
 ## Status bands
 
@@ -89,6 +100,6 @@ The corresponding Next.js screen is `/candidate-validation`; registration and lo
 
 - Email verification and refresh-token rotation are not implemented; registration activates accounts with `isEmailVerified: false`.
 - Ownership challenges for GitHub and coding-platform accounts are not implemented.
-- Only Codeforces and GitHub have automated public-data retrieval. LeetCode, HackerRank, and CodeChef are stored for manual review; no scraping is performed.
+- Automated public-data retrieval supports Codeforces and LeetCode, in addition to GitHub. LeetCode uses a public but unversioned GraphQL endpoint that may change; HackerRank and CodeChef remain manual-review only.
 - The rubric needs calibration against consented, representative cases and human review before it is used for any consequential decision.
 - Add abuse controls, provider-aware caching/rate limits, security review, data-retention policy, and a safer browser token-storage strategy before deployment.

@@ -34,6 +34,34 @@ type CodeforcesContest = {
   ratingUpdateTimeSeconds: number;
 };
 
+type LeetCodeDifficulty = 'Easy' | 'Medium' | 'Hard';
+
+type LeetCodeDifficultyStats = {
+  solved: number;
+  acceptedSubmissions: number;
+  totalSubmissions: number;
+  acceptanceRate: number | null;
+};
+
+type LeetCodeStatsResponse = {
+  data?: {
+    matchedUser?: {
+      submitStats?: {
+        acSubmissionNum?: Array<{
+          difficulty?: string;
+          count?: number;
+          submissions?: number;
+        }>;
+        totalSubmissionNum?: Array<{
+          difficulty?: string;
+          submissions?: number;
+        }>;
+      };
+    } | null;
+  };
+  errors?: unknown[];
+};
+
 type GitHubEvidence = {
   publicRepositories: number;
   analyzedRepositories: number;
@@ -50,6 +78,19 @@ type CodingEvidence =
       acceptedProblems: number;
       contests: number;
       rating: number | null;
+      score: number;
+    }
+  | {
+      supported: true;
+      platform: 'LEETCODE';
+      difficultyStats: Record<LeetCodeDifficulty, LeetCodeDifficultyStats>;
+      weightedAcceptanceRate: number | null;
+      scoreBreakdown: {
+        easySolved: number;
+        mediumSolved: number;
+        hardSolved: number;
+        acceptanceRateBonus: number;
+      };
       score: number;
     }
   | {
@@ -237,6 +278,10 @@ export class CandidateValidationService {
     platform: CodingPlatform,
     handle: string,
   ): Promise<CodingEvidence> {
+    if (platform === CodingPlatform.LEETCODE) {
+      return this.getLeetCodeEvidence(handle);
+    }
+
     if (platform !== CodingPlatform.CODEFORCES) {
       return {
         supported: false,
@@ -286,6 +331,131 @@ export class CandidateValidationService {
       contests: contests.length,
       rating: user.rating ?? null,
       score,
+    };
+  }
+
+  private async getLeetCodeEvidence(handle: string): Promise<CodingEvidence> {
+    const url = 'https://leetcode.com/graphql/';
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'AlumniConnect-Candidate-Assessment',
+        },
+        body: JSON.stringify({
+          query: `query candidateProfile($username: String!) {
+            matchedUser(username: $username) {
+              submitStats {
+                acSubmissionNum { difficulty count submissions }
+                totalSubmissionNum { difficulty submissions }
+              }
+            }
+          }`,
+          variables: { username: handle },
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch (error) {
+      throw new ServiceUnavailableException(
+        `Unable to retrieve public evidence from leetcode.com: ${
+          error instanceof Error ? error.message : 'network request failed'
+        }`,
+      );
+    }
+
+    if (response.status === 403 || response.status === 429) {
+      throw new ServiceUnavailableException(
+        'LeetCode rate-limited or denied the public profile request; try again later',
+      );
+    }
+    if (!response.ok) {
+      throw new BadGatewayException(
+        `LeetCode returned HTTP ${response.status} while retrieving public profile evidence`,
+      );
+    }
+
+    let body: LeetCodeStatsResponse;
+    try {
+      body = (await response.json()) as LeetCodeStatsResponse;
+    } catch {
+      throw new BadGatewayException('LeetCode returned invalid JSON for public profile evidence');
+    }
+    if (typeof body !== 'object' || body === null) {
+      throw new BadGatewayException('LeetCode returned an invalid public profile response');
+    }
+    if (body.errors?.length) {
+      throw new BadGatewayException(
+        'LeetCode could not provide profile statistics; verify the handle and retry',
+      );
+    }
+    const matchedUser = body.data?.matchedUser;
+    if (matchedUser === null) {
+      throw new NotFoundException('LeetCode profile was not found');
+    }
+
+    const acceptedByDifficulty = matchedUser?.submitStats?.acSubmissionNum;
+    const totalsByDifficulty = matchedUser?.submitStats?.totalSubmissionNum;
+    if (!Array.isArray(acceptedByDifficulty) || !Array.isArray(totalsByDifficulty)) {
+      throw new BadGatewayException('LeetCode returned incomplete submission statistics');
+    }
+
+    const difficulties: LeetCodeDifficulty[] = ['Easy', 'Medium', 'Hard'];
+    const difficultyStats = {} as Record<LeetCodeDifficulty, LeetCodeDifficultyStats>;
+    for (const difficulty of difficulties) {
+      const accepted = acceptedByDifficulty.find((entry) => entry.difficulty === difficulty);
+      const total = totalsByDifficulty.find((entry) => entry.difficulty === difficulty);
+      const solved = accepted?.count;
+      const acceptedSubmissions = accepted?.submissions;
+      const totalSubmissions = total?.submissions;
+      if (
+        !Number.isInteger(solved) ||
+        !Number.isInteger(acceptedSubmissions) ||
+        !Number.isInteger(totalSubmissions) ||
+        solved! < 0 ||
+        acceptedSubmissions! < solved! ||
+        totalSubmissions! < acceptedSubmissions!
+      ) {
+        throw new BadGatewayException(
+          `LeetCode returned invalid ${difficulty.toLowerCase()} submission statistics`,
+        );
+      }
+
+      difficultyStats[difficulty] = {
+        solved: solved!,
+        acceptedSubmissions: acceptedSubmissions!,
+        totalSubmissions: totalSubmissions!,
+        acceptanceRate:
+          totalSubmissions === 0 ? null : (acceptedSubmissions! / totalSubmissions!) * 100,
+      };
+    }
+
+    const attemptsForRate = difficulties
+      .map((difficulty) => difficultyStats[difficulty])
+      .filter((stats) => stats.totalSubmissions >= 10);
+    const acceptedAttempts = attemptsForRate.reduce(
+      (sum, stats) => sum + stats.acceptedSubmissions,
+      0,
+    );
+    const totalAttempts = attemptsForRate.reduce((sum, stats) => sum + stats.totalSubmissions, 0);
+    const weightedAcceptanceRate =
+      totalAttempts === 0 ? null : (acceptedAttempts / totalAttempts) * 100;
+
+    const scoreBreakdown = {
+      easySolved: this.leetCodeEasyScore(difficultyStats.Easy.solved),
+      mediumSolved: this.leetCodeMediumScore(difficultyStats.Medium.solved),
+      hardSolved: this.leetCodeHardScore(difficultyStats.Hard.solved),
+      acceptanceRateBonus: this.leetCodeAcceptanceBonus(weightedAcceptanceRate),
+    };
+
+    return {
+      supported: true,
+      platform: 'LEETCODE',
+      difficultyStats,
+      weightedAcceptanceRate,
+      scoreBreakdown,
+      score: Object.values(scoreBreakdown).reduce((sum, points) => sum + points, 0),
     };
   }
 
@@ -377,6 +547,35 @@ export class CandidateValidationService {
     if (count >= 15) return 15;
     if (count >= 5) return 10;
     if (count >= 1) return 5;
+    return 0;
+  }
+
+  private leetCodeEasyScore(count: number) {
+    if (count >= 75) return 5;
+    if (count >= 25) return 3;
+    if (count >= 1) return 1;
+    return 0;
+  }
+
+  private leetCodeMediumScore(count: number) {
+    if (count >= 40) return 12;
+    if (count >= 10) return 8;
+    if (count >= 1) return 4;
+    return 0;
+  }
+
+  private leetCodeHardScore(count: number) {
+    if (count >= 10) return 25;
+    if (count >= 3) return 15;
+    if (count >= 1) return 8;
+    return 0;
+  }
+
+  private leetCodeAcceptanceBonus(rate: number | null) {
+    if (rate === null) return 0;
+    if (rate >= 80) return 3;
+    if (rate >= 60) return 2;
+    if (rate >= 40) return 1;
     return 0;
   }
 

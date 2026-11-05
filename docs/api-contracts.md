@@ -78,7 +78,7 @@ Profile request:
 }
 ```
 
-Supported `codingPlatform` values are `CODEFORCES`, `LEETCODE`, `HACKERRANK`, and `CODECHEF`. Automated public-data collection is currently implemented only for GitHub and Codeforces. Other coding platforms are saved, but their assessments return `MANUAL_REVIEW` with `score: null`; their metrics are not scraped or guessed.
+Supported `codingPlatform` values are `CODEFORCES`, `LEETCODE`, `HACKERRANK`, and `CODECHEF`. Automated public-data collection is implemented for GitHub, Codeforces, and LeetCode. HackerRank and CodeChef profiles are saved for manual review and return `MANUAL_REVIEW` with `score: null`; their metrics are not scraped or guessed. The LeetCode public GraphQL endpoint is unversioned and may change or restrict access.
 
 Automated assessment returns an overall `score` from 0 to 100 and component scores: GitHub (45), coding profile (45), and evidence availability (10). Status bands are `READY_FOR_REVIEW` (75+), `DEVELOPING` (55–74), and `NEEDS_MORE_EVIDENCE` (below 55). Supported provider evidence is saved as a timestamped JSON snapshot. `ownershipVerified` remains false: a handle or public profile is not proof that the signed-in user owns it.
 

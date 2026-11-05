@@ -1,5 +1,5 @@
 import { CandidateAssessmentStatus, CodingPlatform } from '@prisma/client';
-import { NotFoundException } from '@nestjs/common';
+import { BadGatewayException, NotFoundException } from '@nestjs/common';
 import { InMemoryPrototypeStore } from '../../database/in-memory-prototype.store';
 import { PrismaService } from '../../database/prisma.service';
 import { CandidateValidationService } from './candidate-validation.service';
@@ -87,10 +87,10 @@ describe('CandidateValidationService', () => {
     expect(prisma.candidateAssessment.create).toHaveBeenCalledTimes(1);
   });
 
-  it('does not infer a score for unsupported coding platforms', async () => {
+  it('does not infer a score for platforms without automated evidence support', async () => {
     prisma.candidateValidationProfile.findUnique.mockResolvedValue({
       ...profile,
-      codingPlatform: CodingPlatform.LEETCODE,
+      codingPlatform: CodingPlatform.HACKERRANK,
     });
     const fetchMock = jest.spyOn(global, 'fetch');
     fetchMock
@@ -103,6 +103,139 @@ describe('CandidateValidationService', () => {
     expect(result.codingScore).toBeNull();
     expect(result.status).toBe(CandidateAssessmentStatus.MANUAL_REVIEW);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('scores LeetCode solved counts by difficulty and reports submission acceptance rates', async () => {
+    prisma.candidateValidationProfile.findUnique.mockResolvedValue({
+      ...profile,
+      codingPlatform: CodingPlatform.LEETCODE,
+    });
+    const fetchMock = jest.spyOn(global, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(response({ bio: null, public_repos: 0 }))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(
+        response({
+          data: {
+            matchedUser: {
+              submitStats: {
+                acSubmissionNum: [
+                  { difficulty: 'Easy', count: 75, submissions: 100 },
+                  { difficulty: 'Medium', count: 40, submissions: 80 },
+                  { difficulty: 'Hard', count: 10, submissions: 20 },
+                ],
+                totalSubmissionNum: [
+                  { difficulty: 'Easy', submissions: 200 },
+                  { difficulty: 'Medium', submissions: 200 },
+                  { difficulty: 'Hard', submissions: 100 },
+                ],
+              },
+            },
+          },
+        }),
+      );
+
+    const result = await service.assess('user-1');
+
+    expect(result.codingScore).toBe(43);
+    expect(result.score).toBe(53);
+    expect(result.evidence).toMatchObject({
+      codingProfile: {
+        platform: 'LEETCODE',
+        difficultyStats: {
+          Easy: { solved: 75, acceptanceRate: 50 },
+          Medium: { acceptanceRate: 40 },
+          Hard: { acceptanceRate: 20 },
+        },
+        scoreBreakdown: {
+          easySolved: 5,
+          mediumSolved: 12,
+          hardSolved: 25,
+          acceptanceRateBonus: 1,
+        },
+      },
+    });
+    expect(fetchMock.mock.calls[2][0]).toBe('https://leetcode.com/graphql/');
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'POST' });
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body)).variables).toEqual({
+      username: 'sample-handle',
+    });
+  });
+
+  it('rewards hard problems more than a high acceptance rate', async () => {
+    prisma.candidateValidationProfile.findUnique.mockResolvedValue({
+      ...profile,
+      codingPlatform: CodingPlatform.LEETCODE,
+    });
+    const fetchMock = jest.spyOn(global, 'fetch');
+    const leetCodeResponse = (
+      solved: { Easy: number; Medium: number; Hard: number },
+      acceptedSubmissions: { Easy: number; Medium: number; Hard: number },
+      totalSubmissions: { Easy: number; Medium: number; Hard: number },
+    ) =>
+      response({
+        data: {
+          matchedUser: {
+            submitStats: {
+              acSubmissionNum: (['Easy', 'Medium', 'Hard'] as const).map((difficulty) => ({
+                difficulty,
+                count: solved[difficulty],
+                submissions: acceptedSubmissions[difficulty],
+              })),
+              totalSubmissionNum: (['Easy', 'Medium', 'Hard'] as const).map((difficulty) => ({
+                difficulty,
+                submissions: totalSubmissions[difficulty],
+              })),
+            },
+          },
+        },
+      });
+
+    fetchMock
+      .mockResolvedValueOnce(response({ bio: null, public_repos: 0 }))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(
+        leetCodeResponse(
+          { Easy: 0, Medium: 0, Hard: 10 },
+          { Easy: 0, Medium: 0, Hard: 10 },
+          { Easy: 10, Medium: 10, Hard: 100 },
+        ),
+      )
+      .mockResolvedValueOnce(response({ bio: null, public_repos: 0 }))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(
+        leetCodeResponse(
+          { Easy: 0, Medium: 0, Hard: 0 },
+          { Easy: 90, Medium: 90, Hard: 90 },
+          { Easy: 100, Medium: 100, Hard: 100 },
+        ),
+      );
+
+    const hardFocused = await service.assess('user-1');
+    const highAcceptance = await service.assess('user-1');
+
+    expect(hardFocused.codingScore).toBe(25);
+    expect(highAcceptance.codingScore).toBe(3);
+    expect(hardFocused.codingScore).toBeGreaterThan(highAcceptance.codingScore!);
+  });
+
+  it('fails explicitly when LeetCode does not return public profile statistics', async () => {
+    prisma.candidateValidationProfile.findUnique.mockResolvedValue({
+      ...profile,
+      codingPlatform: CodingPlatform.LEETCODE,
+    });
+    const fetchMock = jest.spyOn(global, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(response({ bio: null, public_repos: 0 }))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(
+        response({
+          errors: [{ message: 'Public profile statistics are temporarily unavailable' }],
+        }),
+      );
+
+    await expect(service.assess('user-1')).rejects.toBeInstanceOf(BadGatewayException);
+    expect(prisma.candidateAssessment.create).not.toHaveBeenCalled();
   });
 
   it('requires a saved profile before assessment', async () => {

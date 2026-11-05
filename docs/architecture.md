@@ -85,8 +85,8 @@ AlumniConnect/
 
 ### 3.4. Candidate profile assessment
 - **Location**: `backend/src/modules/candidate-validation/`
-- **Responsibility**: Stores authenticated users' consented GitHub/coding handles, fetches public evidence from GitHub and Codeforces, applies a transparent pilot rubric, and persists timestamped evidence snapshots.
-- **Limitations**: Profile ownership is not verified. Automated coding-profile scoring currently supports Codeforces only; other listed platforms require manual review. Scores are readiness signals, not automatic decisions.
+- **Responsibility**: Stores authenticated users' consented GitHub/coding handles, fetches public evidence from GitHub, Codeforces, and LeetCode, applies a transparent pilot rubric, and persists timestamped evidence snapshots.
+- **Limitations**: Profile ownership is not verified. Automated coding-profile scoring supports Codeforces and LeetCode; HackerRank and CodeChef require manual review. LeetCode uses an unversioned public GraphQL endpoint. Scores are readiness signals, not automatic decisions.
 - **Routes**: See `docs/api-contracts.md` and the detailed rubric in `docs/candidate-validation.md`.
 
 ---
