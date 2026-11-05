@@ -22,3 +22,4 @@ echo   - Swagger API: http://localhost:4000/api/docs
 echo   - AI Service:  http://localhost:8000/api/v1/health
 echo ===================================================================
 pause
+

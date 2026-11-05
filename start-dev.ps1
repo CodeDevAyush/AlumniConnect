@@ -29,3 +29,4 @@ Write-Host "  - Core Backend API     : http://localhost:4000/api/v1" -Foreground
 Write-Host "  - Swagger OpenAPI Docs : http://localhost:4000/api/docs" -ForegroundColor Cyan
 Write-Host "  - AI Microservice API  : http://localhost:8000/api/v1/health" -ForegroundColor Cyan
 Write-Host "-------------------------------------------------------------------"
+

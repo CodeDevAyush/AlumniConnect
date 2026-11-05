@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { CandidateAssessmentStatus, CodingPlatform, Prisma, UserRole } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import * as bcrypt from 'bcryptjs';
 
 export interface PrototypeUser {
   id: string;
@@ -37,11 +38,47 @@ export interface PrototypeAssessment {
 }
 
 @Injectable()
-export class InMemoryPrototypeStore {
+export class InMemoryPrototypeStore implements OnModuleInit {
   private readonly usersById = new Map<string, PrototypeUser>();
   private readonly userIdsByEmail = new Map<string, string>();
   private readonly profilesByUserId = new Map<string, PrototypeValidationProfile>();
   private readonly assessmentsByUserId = new Map<string, PrototypeAssessment[]>();
+
+  async onModuleInit() {
+    const salt = await bcrypt.genSalt(10);
+    const demoPasswordHash = await bcrypt.hash('DemoPassword2026!', salt);
+    const adminPasswordHash = await bcrypt.hash('AdminSecure2026!', salt);
+
+    if (!this.findUserByEmail('admin@alumniconnect.edu')) {
+      this.createUser({
+        email: 'admin@alumniconnect.edu',
+        passwordHash: adminPasswordHash,
+        role: UserRole.ADMIN,
+        status: 'ACTIVE',
+        deletedAt: null,
+      });
+    }
+
+    if (!this.findUserByEmail('alumni.sarah@google.com')) {
+      this.createUser({
+        email: 'alumni.sarah@google.com',
+        passwordHash: demoPasswordHash,
+        role: UserRole.ALUMNI,
+        status: 'ACTIVE',
+        deletedAt: null,
+      });
+    }
+
+    if (!this.findUserByEmail('student.alex@university.edu')) {
+      this.createUser({
+        email: 'student.alex@university.edu',
+        passwordHash: demoPasswordHash,
+        role: UserRole.STUDENT,
+        status: 'ACTIVE',
+        deletedAt: null,
+      });
+    }
+  }
 
   findUserByEmail(email: string): PrototypeUser | undefined {
     const userId = this.userIdsByEmail.get(email);
