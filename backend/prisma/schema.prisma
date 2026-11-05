@@ -68,39 +68,55 @@ enum OpportunityType {
   REFERRAL
 }
 
+enum CodingPlatform {
+  CODEFORCES
+  LEETCODE
+  HACKERRANK
+  CODECHEF
+}
+
+enum CandidateAssessmentStatus {
+  READY_FOR_REVIEW
+  DEVELOPING
+  NEEDS_MORE_EVIDENCE
+  MANUAL_REVIEW
+}
+
 // -----------------------------------------------------------------------------
 // MODELS
 // -----------------------------------------------------------------------------
 
 /// Core user authentication and identity entity
 model User {
-  id                   String           @id @default(uuid())
-  email                String           @unique
-  passwordHash         String
-  role                 UserRole         @default(STUDENT)
-  status               AccountStatus    @default(PENDING_VERIFICATION)
-  isEmailVerified      Boolean          @default(false)
+  id                     String        @id @default(uuid())
+  email                  String        @unique
+  passwordHash           String
+  role                   UserRole      @default(STUDENT)
+  status                 AccountStatus @default(PENDING_VERIFICATION)
+  isEmailVerified        Boolean       @default(false)
   emailVerificationToken String?
-  passwordResetToken   String?
-  passwordResetExpires DateTime?
-  lastLoginAt          DateTime?
-  deletedAt            DateTime?
+  passwordResetToken     String?
+  passwordResetExpires   DateTime?
+  lastLoginAt            DateTime?
+  deletedAt              DateTime?
 
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 1:1 Profile relation
-  profile              Profile?
+  profile Profile?
 
   // Relations
-  verificationRequests VerificationRequest[]
-  connectionsSent      Connection[]     @relation("RequesterConnections")
-  connectionsReceived  Connection[]     @relation("ReceiverConnections")
-  mentorshipsRequested MentorshipRequest[] @relation("StudentMentorships")
-  mentorshipsOffered   MentorshipRequest[] @relation("AlumniMentorships")
-  opportunitiesPosted  Opportunity[]    @relation("PostedOpportunities")
-  capabilityAssessments CapabilityAssessment[]
-  auditLogs            AuditLog[]
+  verificationRequests       VerificationRequest[]
+  connectionsSent            Connection[]                @relation("RequesterConnections")
+  connectionsReceived        Connection[]                @relation("ReceiverConnections")
+  mentorshipsRequested       MentorshipRequest[]         @relation("StudentMentorships")
+  mentorshipsOffered         MentorshipRequest[]         @relation("AlumniMentorships")
+  opportunitiesPosted        Opportunity[]               @relation("PostedOpportunities")
+  capabilityAssessments      CapabilityAssessment[]
+  candidateValidationProfile CandidateValidationProfile?
+  candidateAssessments       CandidateAssessment[]
+  auditLogs                  AuditLog[]
 
   @@index([email])
   @@index([role])
@@ -110,31 +126,31 @@ model User {
 
 /// User profile details
 model Profile {
-  id              String          @id @default(uuid())
-  userId          String          @unique
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  firstName       String
-  lastName        String
-  headline        String?
-  bio             String?         @db.Text
-  avatarUrl       String?
-  location        String?
-  department      String?
-  degree          String?
-  graduationYear  Int?
-  skills          String[]        @default([])
-  interests       String[]        @default([])
-  linkedinUrl     String?
-  githubUrl       String?
-  portfolioUrl    String?
+  firstName      String
+  lastName       String
+  headline       String?
+  bio            String?  @db.Text
+  avatarUrl      String?
+  location       String?
+  department     String?
+  degree         String?
+  graduationYear Int?
+  skills         String[] @default([])
+  interests      String[] @default([])
+  linkedinUrl    String?
+  githubUrl      String?
+  portfolioUrl   String?
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Role-specific extensions
-  alumniProfile   AlumniProfile?
-  studentProfile  StudentProfile?
+  alumniProfile  AlumniProfile?
+  studentProfile StudentProfile?
 
   @@index([userId])
   @@index([graduationYear])
@@ -144,22 +160,22 @@ model Profile {
 
 /// Specialized profile for Alumni members
 model AlumniProfile {
-  id                    String        @id @default(uuid())
-  profileId             String        @unique
-  profile               Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  profileId String  @unique
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  currentCompany        String?
-  currentTitle          String?
-  industry              String?
-  yearsOfExperience     Int?          @default(0)
-  willingToMentor       Boolean       @default(true)
-  willingToRefer        Boolean       @default(true)
-  maxMentees            Int           @default(3)
+  currentCompany         String?
+  currentTitle           String?
+  industry               String?
+  yearsOfExperience      Int?    @default(0)
+  willingToMentor        Boolean @default(true)
+  willingToRefer         Boolean @default(true)
+  maxMentees             Int     @default(3)
   preferredContactMethod String?
-  officeLocation        String?
+  officeLocation         String?
 
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([profileId])
   @@index([currentCompany])
@@ -170,20 +186,20 @@ model AlumniProfile {
 
 /// Specialized profile for Student members
 model StudentProfile {
-  id                    String        @id @default(uuid())
-  profileId             String        @unique
-  profile               Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  profileId String  @unique
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  studentIdNumber       String?       @unique
+  studentIdNumber        String?  @unique
   expectedGraduationYear Int?
-  currentSemester       Int?
-  targetRoles           String[]      @default([])
-  targetCompanies       String[]      @default([])
-  resumeUrl             String?
-  githubUsername        String?
+  currentSemester        Int?
+  targetRoles            String[] @default([])
+  targetCompanies        String[] @default([])
+  resumeUrl              String?
+  githubUsername         String?
 
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([profileId])
   @@index([expectedGraduationYear])
@@ -192,19 +208,19 @@ model StudentProfile {
 
 /// Official identity and degree verification requests
 model VerificationRequest {
-  id              String              @id @default(uuid())
-  userId          String
-  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   documentType    String
   documentUrl     String
-  status          VerificationStatus  @default(PENDING)
+  status          VerificationStatus @default(PENDING)
   rejectionReason String?
   reviewerId      String?
   reviewedAt      DateTime?
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -213,17 +229,17 @@ model VerificationRequest {
 
 /// Peer-to-peer connection graph between platform members
 model Connection {
-  id           String            @id @default(uuid())
-  requesterId  String
-  requester    User              @relation("RequesterConnections", fields: [requesterId], references: [id], onDelete: Cascade)
-  receiverId   String
-  receiver     User              @relation("ReceiverConnections", fields: [receiverId], references: [id], onDelete: Cascade)
+  id          String @id @default(uuid())
+  requesterId String
+  requester   User   @relation("RequesterConnections", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User   @relation("ReceiverConnections", fields: [receiverId], references: [id], onDelete: Cascade)
 
-  status       ConnectionStatus  @default(PENDING)
-  note         String?
+  status ConnectionStatus @default(PENDING)
+  note   String?
 
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([requesterId, receiverId])
   @@index([requesterId])
@@ -234,19 +250,19 @@ model Connection {
 
 /// Structured mentorship requests between students and alumni
 model MentorshipRequest {
-  id          String            @id @default(uuid())
-  studentId   String
-  student     User              @relation("StudentMentorships", fields: [studentId], references: [id], onDelete: Cascade)
-  alumniId    String
-  alumni      User              @relation("AlumniMentorships", fields: [alumniId], references: [id], onDelete: Cascade)
+  id        String @id @default(uuid())
+  studentId String
+  student   User   @relation("StudentMentorships", fields: [studentId], references: [id], onDelete: Cascade)
+  alumniId  String
+  alumni    User   @relation("AlumniMentorships", fields: [alumniId], references: [id], onDelete: Cascade)
 
-  status      MentorshipStatus  @default(REQUESTED)
-  goals       String            @db.Text
-  duration    String?
-  notes       String?           @db.Text
+  status   MentorshipStatus @default(REQUESTED)
+  goals    String           @db.Text
+  duration String?
+  notes    String?          @db.Text
 
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([studentId])
   @@index([alumniId])
@@ -256,22 +272,22 @@ model MentorshipRequest {
 
 /// Opportunities and jobs posted by verified alumni or administrators
 model Opportunity {
-  id          String            @id @default(uuid())
-  authorId    String
-  author      User              @relation("PostedOpportunities", fields: [authorId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid())
+  authorId String
+  author   User   @relation("PostedOpportunities", fields: [authorId], references: [id], onDelete: Cascade)
 
-  title       String
-  company     String
-  location    String?
-  type        OpportunityType   @default(FULL_TIME)
-  description String            @db.Text
-  requirements String[]         @default([])
-  applyUrl    String?
-  isActive    Boolean           @default(true)
-  expiresAt   DateTime?
+  title        String
+  company      String
+  location     String?
+  type         OpportunityType @default(FULL_TIME)
+  description  String          @db.Text
+  requirements String[]        @default([])
+  applyUrl     String?
+  isActive     Boolean         @default(true)
+  expiresAt    DateTime?
 
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([authorId])
   @@index([type])
@@ -281,21 +297,21 @@ model Opportunity {
 
 /// Historical Student Technical Capability Assessments
 model CapabilityAssessment {
-  id                     String    @id @default(uuid())
-  studentId              String
-  student                User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id        String @id @default(uuid())
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   track                  String
   overallScore           Float
   readinessTier          String
   overallConfidence      String
   dimensionScores        Json
-  missingEvidenceNotices String[]  @default([])
-  strengths              String[]  @default([])
-  improvementAreas       String[]  @default([])
-  assessmentVersion      String    @default("v1.0.0")
+  missingEvidenceNotices String[] @default([])
+  strengths              String[] @default([])
+  improvementAreas       String[] @default([])
+  assessmentVersion      String   @default("v1.0.0")
 
-  createdAt              DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([studentId])
   @@index([track])
@@ -303,11 +319,51 @@ model CapabilityAssessment {
   @@map("capability_assessments")
 }
 
+/// Candidate-provided public coding profiles and consent for evidence assessment
+model CandidateValidationProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  githubUsername String
+  codingPlatform CodingPlatform
+  codingHandle   String
+  consentAt      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assessments CandidateAssessment[]
+
+  @@map("candidate_validation_profiles")
+}
+
+/// Immutable assessment result and evidence snapshot for later review
+model CandidateAssessment {
+  id        String                     @id @default(uuid())
+  userId    String
+  user      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String
+  profile   CandidateValidationProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  status               CandidateAssessmentStatus
+  score                Int?
+  githubScore          Int?
+  codingScore          Int?
+  evidenceQualityScore Int?
+  ownershipVerified    Boolean                   @default(false)
+  evidence             Json
+  assessedAt           DateTime                  @default(now())
+
+  @@index([userId, assessedAt])
+  @@map("candidate_assessments")
+}
+
 /// Security audit logs for compliance, security tracking, and administrative review
 model AuditLog {
-  id         String    @id @default(uuid())
-  userId     String?
-  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id     String  @id @default(uuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   action     String
   entityType String
@@ -316,7 +372,7 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
 
-  createdAt  DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([action])

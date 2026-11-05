@@ -85,3 +85,40 @@ export interface ApiResponse<T> {
     version: string;
   };
 }
+
+export interface AuthResult {
+  accessToken: string;
+  tokenType: "Bearer";
+  expiresIn: string;
+  user: Pick<User, "id" | "email" | "role">;
+}
+
+export type CodingPlatform = "CODEFORCES" | "LEETCODE" | "HACKERRANK" | "CODECHEF";
+
+export type CandidateAssessmentStatus =
+  | "READY_FOR_REVIEW"
+  | "DEVELOPING"
+  | "NEEDS_MORE_EVIDENCE"
+  | "MANUAL_REVIEW";
+
+export interface CandidateValidationProfile {
+  id: string;
+  userId: string;
+  githubUsername: string;
+  codingPlatform: CodingPlatform;
+  codingHandle: string;
+  consentAt: string;
+  assessments?: CandidateAssessment[];
+}
+
+export interface CandidateAssessment {
+  id: string;
+  status: CandidateAssessmentStatus;
+  score: number | null;
+  githubScore: number | null;
+  codingScore: number | null;
+  evidenceQualityScore: number | null;
+  ownershipVerified: boolean;
+  evidence: Record<string, unknown>;
+  assessedAt: string;
+}

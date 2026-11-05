@@ -46,6 +46,24 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 For rapid inner-loop development, you can run PostgreSQL and Redis in Docker while executing application processes natively.
 
+### Database-free candidate-validation prototype
+
+The candidate-validation/auth prototype can run without PostgreSQL for a local UI/API demo. In
+`backend/.env`, set `PROTOTYPE_IN_MEMORY=true`; the sample JWT secrets are already present in
+`.env.example`. `DATABASE_URL` is ignored in this mode. Then start the backend from PowerShell:
+
+```powershell
+cd backend
+Copy-Item .env.example .env
+# Set PROTOTYPE_IN_MEMORY=true in backend/.env
+npm.cmd run start:dev
+```
+
+In-memory accounts, linked handles, and assessments are erased whenever the backend process stops
+or restarts. Only registration, login, and `/api/v1/candidate-validation` are supported without
+PostgreSQL; other database-backed routes need the normal database setup below. The mode is rejected
+in production and is not suitable for deployment.
+
 ### Step 3.1: Start Infrastructure
 ```bash
 # In repository root

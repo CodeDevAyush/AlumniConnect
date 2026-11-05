@@ -7,6 +7,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     super({
+      ...(process.env.PROTOTYPE_IN_MEMORY === 'true'
+        ? { datasourceUrl: 'postgresql://prototype:prototype@127.0.0.1:5432/prototype' }
+        : {}),
       log:
         process.env.NODE_ENV === 'development'
           ? [
@@ -20,6 +23,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
+    if (process.env.PROTOTYPE_IN_MEMORY === 'true') {
+      this.logger.warn(
+        'PostgreSQL connection skipped: development in-memory prototype mode is active',
+      );
+      return;
+    }
+
     try {
       await this.$connect();
       this.logger.log('✅ Successfully connected to PostgreSQL via Prisma ORM');

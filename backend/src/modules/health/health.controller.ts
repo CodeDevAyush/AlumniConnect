@@ -12,11 +12,15 @@ export class HealthController {
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   async check() {
     let dbStatus = 'down';
-    try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      dbStatus = 'up';
-    } catch {
-      dbStatus = 'disconnected';
+    if (process.env.PROTOTYPE_IN_MEMORY === 'true') {
+      dbStatus = 'in-memory';
+    } else {
+      try {
+        await this.prisma.$queryRaw`SELECT 1`;
+        dbStatus = 'up';
+      } catch {
+        dbStatus = 'disconnected';
+      }
     }
 
     return {

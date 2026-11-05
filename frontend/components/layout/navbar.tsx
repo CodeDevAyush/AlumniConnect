@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Users, Compass, Briefcase, GraduationCap, LogIn } from "lucide-react";
+import { Users, Compass, Briefcase, GraduationCap, LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
@@ -34,6 +34,10 @@ export function Navbar() {
           <Link href="/connections" className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
             <Users className="h-4 w-4" />
             My Network
+          </Link>
+          <Link href="/candidate-validation" className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
+            <ShieldCheck className="h-4 w-4" />
+            Candidate Assessment
           </Link>
         </nav>
 
