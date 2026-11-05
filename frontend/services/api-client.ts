@@ -5,6 +5,7 @@ import {
   CandidateAssessment,
   CandidateValidationProfile,
   CodingPlatform,
+  CommunityPost,
   ConnectionEligibility,
   ConnectionRequest,
   UserRole,
@@ -19,6 +20,12 @@ export const apiClient: AxiosInstance = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+export function notifyAuthChange() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("alumniconnect_auth_change"));
+  }
+}
 
 // Request interceptor to attach JWT token if available
 apiClient.interceptors.request.use(
@@ -39,12 +46,32 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401 && typeof window !== "undefined") {
-      // Clear token and optionally redirect on unauthorized
       localStorage.removeItem("alumniconnect_access_token");
+      localStorage.removeItem("alumniconnect_user");
+      notifyAuthChange();
     }
     return Promise.reject(error);
   },
 );
+
+export function getCurrentUser(): { id: string; email: string; role: UserRole } | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem("alumniconnect_user");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function logout() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("alumniconnect_access_token");
+    localStorage.removeItem("alumniconnect_user");
+    notifyAuthChange();
+  }
+}
 
 export async function getHealthStatus(): Promise<{ status: string; service: string }> {
   const res = await apiClient.get<ApiResponse<{ status: string; service: string }>>("/health");
@@ -69,7 +96,11 @@ export async function registerAccount(input: {
   role: Extract<UserRole, "STUDENT" | "ALUMNI">;
 }): Promise<AuthResult> {
   const res = await apiClient.post<ApiResponse<AuthResult>>("/auth/register", input);
-  localStorage.setItem("alumniconnect_access_token", res.data.data.accessToken);
+  if (typeof window !== "undefined") {
+    localStorage.setItem("alumniconnect_access_token", res.data.data.accessToken);
+    localStorage.setItem("alumniconnect_user", JSON.stringify(res.data.data.user));
+    notifyAuthChange();
+  }
   return res.data.data;
 }
 
@@ -78,13 +109,12 @@ export async function loginAccount(input: {
   password: string;
 }): Promise<AuthResult> {
   const res = await apiClient.post<ApiResponse<AuthResult>>("/auth/login", input);
-  localStorage.setItem("alumniconnect_access_token", res.data.data.accessToken);
+  if (typeof window !== "undefined") {
+    localStorage.setItem("alumniconnect_access_token", res.data.data.accessToken);
+    localStorage.setItem("alumniconnect_user", JSON.stringify(res.data.data.user));
+    notifyAuthChange();
+  }
   return res.data.data;
-}
-
-export async function evaluateProject(repoUrl: string) {
-  const res = await apiClient.post<ApiResponse<any>>("/project-eval", { repoUrl });
-  return res.data.data ?? res.data;
 }
 
 export async function getCandidateValidationProfile(): Promise<CandidateValidationProfile | null> {
@@ -144,5 +174,28 @@ export async function requestAlumniConnection(receiverId: string): Promise<Conne
 
 export async function getMyConnections(): Promise<ConnectionRequest[]> {
   const res = await apiClient.get<ApiResponse<ConnectionRequest[]>>("/connections/me");
+  return res.data.data;
+}
+
+export async function getAnnouncements(): Promise<CommunityPost[]> {
+  const res = await apiClient.get<ApiResponse<CommunityPost[]>>("/announcements");
+  return res.data.data;
+}
+
+export async function createCommunityPost(input: {
+  title: string;
+  content: string;
+  category?: string;
+  authorName?: string;
+  authorRole?: string;
+  authorCompany?: string;
+  tags?: string[];
+}): Promise<CommunityPost> {
+  const res = await apiClient.post<ApiResponse<CommunityPost>>("/announcements", input);
+  return res.data.data;
+}
+
+export async function likeCommunityPost(postId: string): Promise<{ success: boolean }> {
+  const res = await apiClient.post<ApiResponse<{ success: boolean }>>(`/announcements/${postId}/like`);
   return res.data.data;
 }

@@ -5,8 +5,10 @@ import { PrismaService } from '../../database/prisma.service';
 describe('HealthController', () => {
   let controller: HealthController;
   let prisma: PrismaService;
+  const originalMode = process.env.PROTOTYPE_IN_MEMORY;
 
   beforeEach(async () => {
+    delete process.env.PROTOTYPE_IN_MEMORY;
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
       providers: [
@@ -23,6 +25,11 @@ describe('HealthController', () => {
     prisma = module.get<PrismaService>(PrismaService);
   });
 
+  afterEach(() => {
+    if (originalMode === undefined) delete process.env.PROTOTYPE_IN_MEMORY;
+    else process.env.PROTOTYPE_IN_MEMORY = originalMode;
+  });
+
   it('should return status ok and db up when database responds', async () => {
     const res = await controller.check();
     expect(res.status).toBe('ok');
@@ -37,4 +44,3 @@ describe('HealthController', () => {
     expect(res.database).toBe('disconnected');
   });
 });
-

@@ -156,3 +156,19 @@ export interface ConnectionRequest {
   status: "PENDING" | "ACCEPTED" | "DECLINED" | "BLOCKED";
   createdAt: string;
 }
+
+
+export type CommunityCategory = "MENTOR_UPDATE" | "TECH_INSIGHT" | "REFERRAL" | "EVENT";
+
+export interface CommunityPost {
+  id: string;
+  title: string;
+  content: string;
+  category: CommunityCategory;
+  authorName: string;
+  authorRole: string;
+  authorCompany?: string;
+  tags: string[];
+  likesCount: number;
+  publishedAt: string;
+}

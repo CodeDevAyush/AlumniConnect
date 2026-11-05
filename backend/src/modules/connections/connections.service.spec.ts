@@ -22,7 +22,7 @@ describe('ConnectionsService', () => {
   beforeEach(() => {
     process.env.PROTOTYPE_IN_MEMORY = 'true';
     prototypeStore = {
-      getLatestAssessmentScore: jest.fn().mockReturnValue(80),
+      getLatestAssessmentScore: jest.fn().mockReturnValue(79),
       getConnectionRequests: jest.fn().mockReturnValue([]),
       addConnectionRequest: jest.fn((requesterId, receiverId) => ({
         id: 'request-1',
@@ -51,12 +51,12 @@ describe('ConnectionsService', () => {
     else process.env.PROTOTYPE_IN_MEMORY = originalMode;
   });
 
-  it('requires a score strictly greater than 80', async () => {
+  it('requires a score of 80 or higher', async () => {
     expect(await service.getEligibility('student-1')).toEqual({
       eligible: false,
-      latestScore: 80,
+      latestScore: 79,
       requiredScore: 80,
-      requirement: 'score must be greater than 80',
+      requirement: 'score must be 80 or higher',
     });
 
     await expect(service.requestConnection('student-1', alumniId)).rejects.toBeInstanceOf(
@@ -65,8 +65,15 @@ describe('ConnectionsService', () => {
     expect(prototypeStore.addConnectionRequest).not.toHaveBeenCalled();
   });
 
-  it('allows an eligible signed-in user to request a prototype alumni connection', async () => {
-    prototypeStore.getLatestAssessmentScore.mockReturnValue(81);
+  it('allows an eligible signed-in user with score >= 80 to request a prototype alumni connection', async () => {
+    prototypeStore.getLatestAssessmentScore.mockReturnValue(80);
+
+    expect(await service.getEligibility('student-1')).toEqual({
+      eligible: true,
+      latestScore: 80,
+      requiredScore: 80,
+      requirement: 'score must be 80 or higher',
+    });
 
     const request = await service.requestConnection('student-1', alumniId);
 

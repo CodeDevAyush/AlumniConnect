@@ -40,10 +40,10 @@ export class ConnectionsService {
   async getEligibility(userId: string) {
     const score = await this.getLatestAssessmentScore(userId);
     return {
-      eligible: score !== null && score > MINIMUM_CONNECTION_SCORE,
+      eligible: score !== null && score >= MINIMUM_CONNECTION_SCORE,
       latestScore: score,
       requiredScore: MINIMUM_CONNECTION_SCORE,
-      requirement: 'score must be greater than 80',
+      requirement: 'score must be 80 or higher',
     };
   }
 
@@ -55,7 +55,7 @@ export class ConnectionsService {
     const eligibility = await this.getEligibility(requesterId);
     if (!eligibility.eligible) {
       throw new ForbiddenException(
-        'An assessment score greater than 80 is required before requesting alumni connections',
+        'An assessment score of 80 or higher is required before requesting alumni connections',
       );
     }
 
