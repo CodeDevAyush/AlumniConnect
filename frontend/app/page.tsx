@@ -5,23 +5,28 @@ import {
   Sparkles,
   Briefcase,
   Users,
-  Compass,
   GraduationCap,
   Award,
+  CheckCircle2,
+  Code2,
+  FileCheck,
+  TrendingUp,
+  LogIn,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default function Home() {
   return (
-    <div className="flex flex-col gap-20 pb-20">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 sm:pt-24 lg:pt-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <Badge variant="default" className="mb-6 px-4 py-1.5 text-xs font-semibold gap-1.5 inline-flex">
+    <div className="flex flex-col gap-16 pb-20">
+      {/* Hero Introduction Section */}
+      <section className="relative overflow-hidden pt-12 sm:pt-20 lg:pt-24 bg-gradient-to-b from-blue-50/50 via-white to-slate-50/50 border-b border-slate-200">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center pb-16">
+          <Badge variant="default" className="mb-6 px-4 py-1.5 text-xs font-semibold gap-1.5 inline-flex bg-brand-orange text-white">
             <Sparkles className="h-3.5 w-3.5" />
-            AI-Powered Alumni Intelligence Engine
+            Verified Campus Network & Code Quality Intelligence
           </Badge>
 
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-6xl max-w-4xl mx-auto">
@@ -31,42 +36,126 @@ export default function Home() {
             </span>
           </h1>
 
-          <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto">
-            Bridge the gap between current students and verified university alumni. Discover industry mentors, unlock internal referrals, and accelerate career trajectories.
+          <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            Bridge the gap between current students and verified university alumni. Student candidates judge their code quality score to reach an <strong>80+ rating</strong>, while alumni mentors share engineering updates and review connection requests.
           </p>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link href="/register">
-              <Button size="lg" className="gap-2">
-                Join the Network
-                <ArrowRight className="h-5 w-5" />
-              </Button>
-            </Link>
-            <Link href="/discovery">
-              <Button variant="outline" size="lg" className="gap-2">
-                <Compass className="h-5 w-5" />
-                Explore Directory
-              </Button>
-            </Link>
+          {/* Two Distinct Portals (Student vs Alumni) */}
+          <div className="mt-12 grid md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
+            {/* Student Card */}
+            <Card className="border-blue-200 shadow-md hover:shadow-lg transition-all bg-gradient-to-br from-white to-blue-50/30 flex flex-col justify-between">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                    <GraduationCap className="h-6 w-6" />
+                  </div>
+                  <Badge variant="outline" className="border-blue-300 bg-blue-50 text-blue-700 font-semibold text-xs">
+                    Candidate Portal
+                  </Badge>
+                </div>
+                <CardTitle className="text-xl font-bold text-slate-900 mt-4">
+                  For Students & Candidates
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-600 mt-1">
+                  Evaluate your repository code quality and unlock direct mentorship with top alumni.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2.5 text-sm text-slate-700 pb-4">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                  <span>Connect public GitHub & LeetCode profiles</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                  <span>SonarQube & Semgrep SAST security code evaluation</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                  <span><strong>80+ Rating Gate</strong>: Unlock connection requests to Google, Stripe, and Meta mentors</span>
+                </div>
+              </CardContent>
+              <CardFooter className="pt-2 border-t border-slate-100 flex gap-2">
+                <Link href="/login?role=STUDENT" className="flex-1">
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-1 text-xs">
+                    <LogIn className="h-3.5 w-3.5" />
+                    Student Sign In
+                  </Button>
+                </Link>
+                <Link href="/register?role=STUDENT" className="flex-1">
+                  <Button variant="outline" className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 gap-1 text-xs">
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Register
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
+            {/* Alumni Card */}
+            <Card className="border-purple-200 shadow-md hover:shadow-lg transition-all bg-gradient-to-br from-white to-purple-50/30 flex flex-col justify-between">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                    <Users className="h-6 w-6" />
+                  </div>
+                  <Badge variant="outline" className="border-purple-300 bg-purple-50 text-purple-700 font-semibold text-xs">
+                    Mentor Portal
+                  </Badge>
+                </div>
+                <CardTitle className="text-xl font-bold text-slate-900 mt-4">
+                  For Alumni & Mentors
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-600 mt-1">
+                  Publish engineering insights to the community feed and review qualified student requests.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2.5 text-sm text-slate-700 pb-4">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                  <span>Publish tech updates, system design tips & referral cycles</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                  <span>Review student connection requests with verified 80+ ratings</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                  <span>One-click Accept or Decline candidate requests with zero noise</span>
+                </div>
+              </CardContent>
+              <CardFooter className="pt-2 border-t border-slate-100 flex gap-2">
+                <Link href="/login?role=ALUMNI" className="flex-1">
+                  <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-1 text-xs">
+                    <LogIn className="h-3.5 w-3.5" />
+                    Alumni Sign In
+                  </Button>
+                </Link>
+                <Link href="/register?role=ALUMNI" className="flex-1">
+                  <Button variant="outline" className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 gap-1 text-xs">
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Register
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
           </div>
 
-          {/* Stats Bar */}
-          <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 border-y border-slate-200 bg-white/50 backdrop-blur py-8 max-w-5xl mx-auto rounded-2xl shadow-sm">
+          {/* Institutional Stats */}
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 border border-slate-200 bg-white py-6 px-4 max-w-4xl mx-auto rounded-2xl shadow-sm">
             <div>
               <div className="text-3xl font-extrabold text-slate-900">100%</div>
               <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mt-1">Verified Alumni</div>
             </div>
             <div>
-              <div className="text-3xl font-extrabold text-blue-600">3.8x</div>
-              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mt-1">Faster Referral Rate</div>
+              <div className="text-3xl font-extrabold text-blue-600">80+</div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mt-1">Score Threshold</div>
             </div>
             <div>
-              <div className="text-3xl font-extrabold text-slate-900">500+</div>
-              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mt-1">Partner Companies</div>
+              <div className="text-3xl font-extrabold text-slate-900">Google • Stripe</div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mt-1">Mentor Network</div>
             </div>
             <div>
-              <div className="text-3xl font-extrabold text-blue-600">AI Match</div>
-              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mt-1">Skill Gap Analysis</div>
+              <div className="text-3xl font-extrabold text-blue-600">SAST + Quality</div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mt-1">SonarQube & Semgrep</div>
             </div>
           </div>
         </div>
@@ -74,63 +163,63 @@ export default function Home() {
 
       {/* Feature Pillar Highlights */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-            Engineered for Meaningful Professional Connections
+            Engineered for Meaningful, Verified Professional Connections
           </h2>
-          <p className="mt-3 text-slate-600 max-w-xl mx-auto">
-            Traditional alumni networks suffer from outdated emails and low response rates. AlumniConnect is active, verified, and outcome-oriented.
+          <p className="mt-3 text-slate-600 max-w-xl mx-auto text-sm">
+            Traditional alumni networks suffer from unverified cold messages and low response rates. AlumniConnect is merit-validated, noise-free, and outcome-oriented.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-6">
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 mb-4">
+              <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 mb-3">
                 <ShieldCheck className="h-6 w-6" />
               </div>
-              <CardTitle>Institutional Verification</CardTitle>
+              <CardTitle className="text-lg">Candidate Code Quality Gate</CardTitle>
               <CardDescription>
-                Every alumni profile is authenticated through university degree records and official email credentials.
+                Automated SonarQube metrics, cognitive complexity rating, test coverage, and Semgrep SAST security checks.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-slate-600">
-                Eliminate spam and unverified outreach. Guaranteed genuine campus affiliation.
+                Only candidates achieving an 80+ rating unlock connection requests to senior alumni, guaranteeing high-signal interactions.
               </p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4">
-                <Sparkles className="h-6 w-6" />
+              <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 mb-3">
+                <Users className="h-6 w-6" />
               </div>
-              <CardTitle>AI Capability & Skill Matching</CardTitle>
+              <CardTitle className="text-lg">Exclusive Mentor Community Feed</CardTitle>
               <CardDescription>
-                Our AI service evaluates student competencies, GitHub commits, and career goals to match with relevant alumni.
+                Mentors share real-world engineering updates, system design patterns, and company hiring windows.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-slate-600">
-                Actionable skill-gap diagnostics and automated mentor recommendations powered by TF-IDF and machine learning.
+                Students learn directly from staff and senior engineers at leading tech companies and stay informed on referral timelines.
               </p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 mb-4">
+              <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 mb-3">
                 <Briefcase className="h-6 w-6" />
               </div>
-              <CardTitle>Referral & Opportunity Pipeline</CardTitle>
+              <CardTitle className="text-lg">Noise-Free Request Management</CardTitle>
               <CardDescription>
-                Alumni post vetted internships, full-time openings, and express direct willingness to refer qualified students.
+                Alumni receive structured connection requests with full candidate rating proof, GitHub evidence, and clean profiles.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-slate-600">
-                Streamline job searches by tapping directly into alumni champions within top tech, finance, and engineering firms.
+                Mentors can accept or decline requests in one click, keeping their mentorship pipeline organized and impactful.
               </p>
             </CardContent>
           </Card>

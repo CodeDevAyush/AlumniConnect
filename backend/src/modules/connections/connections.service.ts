@@ -26,15 +26,19 @@ export class ConnectionsService {
       return this.prototypeStore.getConnectionRequests(userId);
     }
 
-    return this.prisma.connection.findMany({
-      where: {
-        OR: [{ requesterId: userId }, { receiverId: userId }],
-      },
-      include: {
-        requester: { include: { profile: true } },
-        receiver: { include: { profile: true } },
-      },
-    });
+    try {
+      return await this.prisma.connection.findMany({
+        where: {
+          OR: [{ requesterId: userId }, { receiverId: userId }],
+        },
+        include: {
+          requester: { include: { profile: true } },
+          receiver: { include: { profile: true } },
+        },
+      });
+    } catch {
+      return this.prototypeStore.getConnectionRequests(userId);
+    }
   }
 
   async getEligibility(userId: string) {
@@ -60,7 +64,12 @@ export class ConnectionsService {
     }
 
     if (process.env.PROTOTYPE_IN_MEMORY === 'true') {
-      if (!PROTOTYPE_ALUMNI_IDS.includes(receiverId as (typeof PROTOTYPE_ALUMNI_IDS)[number])) {
+      const isKnown =
+        PROTOTYPE_ALUMNI_IDS.includes(receiverId as any) ||
+        (typeof this.prototypeStore.isKnownAlumniId === 'function' &&
+          this.prototypeStore.isKnownAlumniId(receiverId));
+
+      if (!isKnown) {
         throw new NotFoundException('Prototype alumni profile was not found');
       }
       if (
@@ -73,35 +82,68 @@ export class ConnectionsService {
       return this.prototypeStore.addConnectionRequest(requesterId, receiverId);
     }
 
-    const alumni = await this.prisma.user.findFirst({
-      where: {
-        id: receiverId,
-        role: UserRole.ALUMNI,
-        status: AccountStatus.ACTIVE,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
-    if (!alumni) {
-      throw new NotFoundException('Active alumni profile was not found');
+    try {
+      const alumni = await this.prisma.user.findFirst({
+        where: {
+          id: receiverId,
+          role: UserRole.ALUMNI,
+          status: AccountStatus.ACTIVE,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!alumni) {
+        throw new NotFoundException('Active alumni profile was not found');
+      }
+
+      const existing = await this.prisma.connection.findFirst({
+        where: {
+          OR: [
+            { requesterId, receiverId },
+            { requesterId: receiverId, receiverId: requesterId },
+          ],
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException('A connection request or connection already exists');
+      }
+
+      return await this.prisma.connection.create({
+        data: { requesterId, receiverId, status: ConnectionStatus.PENDING },
+      });
+    } catch (err) {
+      if (err instanceof ConflictException || err instanceof NotFoundException) throw err;
+      return this.prototypeStore.addConnectionRequest(requesterId, receiverId);
+    }
+  }
+
+  async respondToRequest(requestId: string, receiverId: string, status: 'ACCEPTED' | 'DECLINED') {
+    if (process.env.PROTOTYPE_IN_MEMORY === 'true') {
+      const updated = this.prototypeStore.respondToConnectionRequest(requestId, receiverId, status);
+      if (!updated) {
+        throw new NotFoundException('Connection request not found or unauthorized');
+      }
+      return updated;
     }
 
-    const existing = await this.prisma.connection.findFirst({
-      where: {
-        OR: [
-          { requesterId, receiverId },
-          { requesterId: receiverId, receiverId: requesterId },
-        ],
-      },
-      select: { id: true },
-    });
-    if (existing) {
-      throw new ConflictException('A connection request or connection already exists');
-    }
+    try {
+      const connection = await this.prisma.connection.findUnique({
+        where: { id: requestId },
+      });
+      if (!connection || connection.receiverId !== receiverId) {
+        throw new NotFoundException('Connection request not found or unauthorized');
+      }
 
-    return this.prisma.connection.create({
-      data: { requesterId, receiverId, status: ConnectionStatus.PENDING },
-    });
+      return await this.prisma.connection.update({
+        where: { id: requestId },
+        data: { status: status === 'ACCEPTED' ? ConnectionStatus.ACCEPTED : ConnectionStatus.DECLINED },
+      });
+    } catch {
+      const updated = this.prototypeStore.respondToConnectionRequest(requestId, receiverId, status);
+      if (!updated) throw new NotFoundException('Connection request not found or unauthorized');
+      return updated;
+    }
   }
 
   private async getLatestAssessmentScore(userId: string): Promise<number | null> {
@@ -109,11 +151,15 @@ export class ConnectionsService {
       return this.prototypeStore.getLatestAssessmentScore(userId);
     }
 
-    const assessment = await this.prisma.candidateAssessment.findFirst({
-      where: { userId },
-      orderBy: { assessedAt: 'desc' },
-      select: { score: true },
-    });
-    return assessment?.score ?? null;
+    try {
+      const assessment = await this.prisma.candidateAssessment.findFirst({
+        where: { userId },
+        orderBy: { assessedAt: 'desc' },
+        select: { score: true },
+      });
+      return assessment?.score ?? this.prototypeStore.getLatestAssessmentScore(userId);
+    } catch {
+      return this.prototypeStore.getLatestAssessmentScore(userId);
+    }
   }
 }

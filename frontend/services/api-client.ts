@@ -54,7 +54,12 @@ apiClient.interceptors.response.use(
   },
 );
 
-export function getCurrentUser(): { id: string; email: string; role: UserRole } | null {
+export function getCurrentUser(): {
+  id: string;
+  email: string;
+  role: UserRole;
+  profile?: any;
+} | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem("alumniconnect_user");
   if (!raw) return null;
@@ -94,6 +99,21 @@ export async function registerAccount(input: {
   email: string;
   password: string;
   role: Extract<UserRole, "STUDENT" | "ALUMNI">;
+  firstName?: string;
+  lastName?: string;
+  department?: string;
+  graduationYear?: number;
+  githubUsername?: string;
+  codingPlatform?: string;
+  codingHandle?: string;
+  targetRoles?: string[];
+  company?: string;
+  title?: string;
+  location?: string;
+  skills?: string[];
+  willingToMentor?: boolean;
+  willingToRefer?: boolean;
+  bio?: string;
 }): Promise<AuthResult> {
   const res = await apiClient.post<ApiResponse<AuthResult>>("/auth/register", input);
   if (typeof window !== "undefined") {
@@ -107,6 +127,7 @@ export async function registerAccount(input: {
 export async function loginAccount(input: {
   email: string;
   password: string;
+  role?: Extract<UserRole, "STUDENT" | "ALUMNI">;
 }): Promise<AuthResult> {
   const res = await apiClient.post<ApiResponse<AuthResult>>("/auth/login", input);
   if (typeof window !== "undefined") {
@@ -172,6 +193,17 @@ export async function requestAlumniConnection(receiverId: string): Promise<Conne
   return res.data.data;
 }
 
+export async function respondToConnectionRequest(
+  requestId: string,
+  status: "ACCEPTED" | "DECLINED",
+): Promise<ConnectionRequest> {
+  const res = await apiClient.post<ApiResponse<ConnectionRequest>>(
+    `/connections/requests/${requestId}/respond`,
+    { status },
+  );
+  return res.data.data;
+}
+
 export async function getMyConnections(): Promise<ConnectionRequest[]> {
   const res = await apiClient.get<ApiResponse<ConnectionRequest[]>>("/connections/me");
   return res.data.data;
@@ -190,6 +222,7 @@ export async function createCommunityPost(input: {
   authorRole?: string;
   authorCompany?: string;
   tags?: string[];
+  userRole?: string;
 }): Promise<CommunityPost> {
   const res = await apiClient.post<ApiResponse<CommunityPost>>("/announcements", input);
   return res.data.data;

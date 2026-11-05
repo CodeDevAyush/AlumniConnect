@@ -59,6 +59,7 @@ export default function CommunityPage() {
   const [formError, setFormError] = useState("");
 
   const currentUser = getCurrentUser();
+  const isAlumni = currentUser?.role === "ALUMNI";
 
   useEffect(() => {
     loadPosts();
@@ -94,6 +95,10 @@ export default function CommunityPage() {
 
   async function handleCreatePost(e: React.FormEvent) {
     e.preventDefault();
+    if (!isAlumni) {
+      setFormError("Only verified alumni and mentors can publish community updates.");
+      return;
+    }
     if (!title.trim() || !content.trim()) {
       setFormError("Title and post content are required.");
       return;
@@ -113,10 +118,13 @@ export default function CommunityPage() {
         title,
         content,
         category,
-        authorName: currentUser?.email?.split("@")[0] || "Alumni Mentor",
-        authorRole: authorRole || "Verified Mentor",
-        authorCompany: authorCompany || "Campus Alumni Network",
+        authorName: currentUser?.profile?.firstName
+          ? `${currentUser.profile.firstName} ${currentUser.profile.lastName || ""}`.trim()
+          : currentUser?.email?.split("@")[0] || "Alumni Mentor",
+        authorRole: currentUser?.profile?.title || authorRole || "Verified Mentor",
+        authorCompany: currentUser?.profile?.company || authorCompany || "Alumni Network",
         tags,
+        userRole: currentUser?.role,
       });
 
       setPosts((prev) => [newPost, ...prev]);
@@ -161,13 +169,19 @@ export default function CommunityPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <PlusCircle className="h-4 w-4" />
-            {showCreateForm ? "Close Form" : "Share Mentor Update"}
-          </Button>
+          {isAlumni ? (
+            <Button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <PlusCircle className="h-4 w-4" />
+              {showCreateForm ? "Close Form" : "Share Mentor Update"}
+            </Button>
+          ) : (
+            <Badge variant="outline" className="border-blue-300 bg-blue-50 text-blue-700 py-1.5 px-3 text-xs font-semibold">
+              Mentor Guidance Feed (Read & Connect)
+            </Badge>
+          )}
           <Link href="/discovery">
             <Button variant="outline" className="gap-1.5">
               <span>Find Mentors</span>

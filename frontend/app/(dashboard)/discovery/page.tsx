@@ -24,6 +24,7 @@ import {
   getConnectionEligibility,
   getMyConnections,
   requestAlumniConnection,
+  searchAlumni,
   getCurrentUser,
 } from "@/services/api-client";
 import { ConnectionEligibility } from "@/types";
@@ -86,6 +87,7 @@ const MOCK_ALUMNI: AlumniItem[] = [
 
 export default function DiscoveryPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [alumniList, setAlumniList] = useState<AlumniItem[]>(MOCK_ALUMNI);
   const [eligibility, setEligibility] = useState<ConnectionEligibility | null>(null);
   const [eligibilityError, setEligibilityError] = useState("");
   const [requestingId, setRequestingId] = useState<string | null>(null);
@@ -97,6 +99,18 @@ export default function DiscoveryPage() {
 
   useEffect(() => {
     let active = true;
+
+    // Load alumni list
+    searchAlumni()
+      .then((data) => {
+        if (active && Array.isArray(data) && data.length > 0) {
+          setAlumniList(data);
+        }
+      })
+      .catch(() => {
+        // Fallback to initial mock alumni
+      });
+
     getConnectionEligibility()
       .then((result) => {
         if (active) setEligibility(result);
@@ -141,11 +155,11 @@ export default function DiscoveryPage() {
     }
   }
 
-  const filteredAlumni = MOCK_ALUMNI.filter(
+  const filteredAlumni = alumniList.filter(
     (a) =>
       a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       a.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.skills.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase())),
+      (a.skills && a.skills.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()))),
   );
 
   const candidateScore = eligibility?.latestScore ?? null;

@@ -152,7 +152,14 @@ export interface ConnectionEligibility {
 export interface ConnectionRequest {
   id: string;
   requesterId: string;
+  requesterName?: string;
+  requesterEmail?: string;
+  requesterScore?: number | null;
+  requesterGithub?: string;
   receiverId: string;
+  receiverName?: string;
+  receiverCompany?: string;
+  receiverTitle?: string;
   status: "PENDING" | "ACCEPTED" | "DECLINED" | "BLOCKED";
   createdAt: string;
 }

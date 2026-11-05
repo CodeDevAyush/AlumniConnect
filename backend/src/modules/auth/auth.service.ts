@@ -6,11 +6,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { AccountStatus, Prisma, UserRole } from '@prisma/client';
+import { AccountStatus, CodingPlatform, Prisma, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { InMemoryPrototypeStore } from '../../database/in-memory-prototype.store';
 import { PrismaService } from '../../database/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -43,8 +44,9 @@ export class AuthService {
       throw new ConflictException('An account with this email already exists');
     }
 
-    let user: { id: string; email: string; role: UserRole };
     const passwordHash = await bcrypt.hash(dto.password, 12);
+    let user: any;
+
     if (inMemory) {
       user = this.prototypeStore.createUser({
         email,
@@ -53,7 +55,43 @@ export class AuthService {
         status: AccountStatus.ACTIVE,
         deletedAt: null,
       });
-      return this.issueAccessToken({ id: user.id, email: user.email, role: user.role });
+
+      // Construct and attach rich profile
+      const profile = {
+        id: randomUUID(),
+        userId: user.id,
+        firstName: dto.firstName?.trim() || (dto.role === 'ALUMNI' ? 'Alumni' : 'Student'),
+        lastName: dto.lastName?.trim() || 'Member',
+        department: dto.department || 'Computer Science & Engineering',
+        graduationYear: dto.graduationYear ? Number(dto.graduationYear) : (dto.role === 'ALUMNI' ? 2021 : 2026),
+        // Student
+        githubUsername: dto.githubUsername?.trim(),
+        codingPlatform: dto.codingPlatform || 'LeetCode',
+        codingHandle: dto.codingHandle?.trim(),
+        targetRoles: dto.targetRoles || ['Software Engineer', 'Full Stack Developer'],
+        // Alumni
+        company: dto.company?.trim() || (dto.role === 'ALUMNI' ? 'Tech Industry' : undefined),
+        title: dto.title?.trim() || (dto.role === 'ALUMNI' ? 'Senior Software Engineer' : undefined),
+        location: dto.location?.trim() || (dto.role === 'ALUMNI' ? 'San Francisco, CA' : undefined),
+        skills: dto.skills && dto.skills.length > 0 ? dto.skills : ['TypeScript', 'Node.js', 'Distributed Systems'],
+        willingToMentor: dto.willingToMentor ?? true,
+        willingToRefer: dto.willingToRefer ?? (dto.role === 'ALUMNI'),
+        bio: dto.bio?.trim() || (dto.role === 'ALUMNI' ? 'Experienced graduate willing to mentor motivated students.' : undefined),
+        isTopTier: dto.role === 'ALUMNI' && ['google', 'stripe', 'meta', 'apple', 'amazon', 'netflix'].includes(dto.company?.toLowerCase() || ''),
+      };
+
+      user.profile = profile;
+
+      // If student provided github handle, pre-link their validation profile
+      if (dto.role === UserRole.STUDENT && dto.githubUsername) {
+        this.prototypeStore.saveValidationProfile(user.id, {
+          githubUsername: dto.githubUsername.trim(),
+          codingPlatform: (dto.codingPlatform as CodingPlatform) || CodingPlatform.LEETCODE,
+          codingHandle: dto.codingHandle?.trim() || dto.githubUsername.trim(),
+        });
+      }
+
+      return this.issueAccessToken({ id: user.id, email: user.email, role: user.role, profile: user.profile });
     }
 
     try {
@@ -71,7 +109,6 @@ export class AuthService {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('An account with this email already exists');
       }
-      // If DB fails, fallback to prototype store
       user = this.prototypeStore.createUser({
         email,
         passwordHash,
@@ -97,7 +134,10 @@ export class AuthService {
 
     if (!user) {
       try {
-        user = await this.prisma.user.findUnique({ where: { email } });
+        user = await this.prisma.user.findUnique({
+          where: { email },
+          include: { profile: true },
+        });
       } catch {
         user = this.prototypeStore.findUserByEmail(email);
       }
@@ -116,10 +156,24 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    return this.issueAccessToken({ id: user.id, email: user.email, role: user.role });
+    // Role-specific check if user attempted logging in through a specific portal
+    if (dto.role && user.role !== dto.role) {
+      const portalType = dto.role === UserRole.ALUMNI ? 'Alumni' : 'Student';
+      const actualType = user.role === UserRole.ALUMNI ? 'Alumni' : 'Student';
+      throw new UnauthorizedException(
+        `This account is registered as a ${actualType}. Please use the ${actualType} portal to sign in.`,
+      );
+    }
+
+    return this.issueAccessToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      profile: user.profile,
+    });
   }
 
-  private async issueAccessToken(user: { id: string; email: string; role: UserRole }) {
+  private async issueAccessToken(user: { id: string; email: string; role: UserRole; profile?: any }) {
     const expiresIn = this.config.get<string>('jwt.accessExpiresIn', '15m');
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, email: user.email, role: user.role },

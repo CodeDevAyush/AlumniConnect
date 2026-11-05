@@ -3,6 +3,29 @@ import { CandidateAssessmentStatus, CodingPlatform, Prisma, UserRole } from '@pr
 import { randomUUID } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 
+export interface PrototypeUserProfile {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  department?: string;
+  graduationYear?: number;
+  // Student specific
+  githubUsername?: string;
+  codingPlatform?: string;
+  codingHandle?: string;
+  targetRoles?: string[];
+  // Alumni specific
+  company?: string;
+  title?: string;
+  location?: string;
+  skills?: string[];
+  willingToMentor?: boolean;
+  willingToRefer?: boolean;
+  bio?: string;
+  isTopTier?: boolean;
+}
+
 export interface PrototypeUser {
   id: string;
   email: string;
@@ -10,6 +33,7 @@ export interface PrototypeUser {
   status: 'ACTIVE';
   deletedAt: null;
   passwordHash: string;
+  profile?: PrototypeUserProfile;
 }
 
 export interface PrototypeValidationProfile {
@@ -44,8 +68,15 @@ export interface PrototypeAssessment {
 export interface PrototypeConnectionRequest {
   id: string;
   requesterId: string;
+  requesterName?: string;
+  requesterEmail?: string;
+  requesterScore?: number | null;
+  requesterGithub?: string;
   receiverId: string;
-  status: 'PENDING';
+  receiverName?: string;
+  receiverCompany?: string;
+  receiverTitle?: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
   createdAt: Date;
 }
 
@@ -74,7 +105,9 @@ export class InMemoryPrototypeStore implements OnModuleInit {
   private readonly userIdsByEmail = new Map<string, string>();
   private readonly profilesByUserId = new Map<string, PrototypeValidationProfile>();
   private readonly assessmentsByUserId = new Map<string, PrototypeAssessment[]>();
-  private readonly connectionsByUserId = new Map<string, PrototypeConnectionRequest[]>();
+  private readonly allConnectionRequests: PrototypeConnectionRequest[] = [];
+  private readonly registeredAlumniIds = new Set<string>(PROTOTYPE_ALUMNI_IDS);
+
   private readonly communityPosts: PrototypeCommunityPost[] = [
     {
       id: 'post-1',
@@ -129,29 +162,146 @@ export class InMemoryPrototypeStore implements OnModuleInit {
       });
     }
 
+    // Seed Alumni: Sarah Chen (Google)
     if (!this.findUserByEmail('alumni.sarah@google.com')) {
-      this.createUser({
+      const sarah = this.createUser({
+        id: '00000000-0000-4000-8000-000000000001',
         email: 'alumni.sarah@google.com',
         passwordHash: demoPasswordHash,
         role: UserRole.ALUMNI,
         status: 'ACTIVE',
         deletedAt: null,
       });
+      sarah.profile = {
+        id: randomUUID(),
+        userId: sarah.id,
+        firstName: 'Sarah',
+        lastName: 'Chen',
+        department: 'Computer Science',
+        graduationYear: 2019,
+        company: 'Google',
+        title: 'Senior Staff Software Engineer',
+        location: 'San Francisco, CA',
+        skills: ['Go', 'Kubernetes', 'Distributed Systems', 'Cloud Architecture'],
+        willingToMentor: true,
+        willingToRefer: true,
+        bio: 'Senior Staff Engineer at Google specializing in distributed infrastructure and cloud reliability.',
+        isTopTier: true,
+      };
     }
 
-    if (!this.findUserByEmail('student.alex@university.edu')) {
-      this.createUser({
+    // Seed Alumni: Marcus Vance (Stripe)
+    if (!this.findUserByEmail('alumni.marcus@stripe.com')) {
+      const marcus = this.createUser({
+        id: '00000000-0000-4000-8000-000000000002',
+        email: 'alumni.marcus@stripe.com',
+        passwordHash: demoPasswordHash,
+        role: UserRole.ALUMNI,
+        status: 'ACTIVE',
+        deletedAt: null,
+      });
+      marcus.profile = {
+        id: randomUUID(),
+        userId: marcus.id,
+        firstName: 'Marcus',
+        lastName: 'Vance',
+        department: 'Computer Science',
+        graduationYear: 2020,
+        company: 'Stripe',
+        title: 'Lead Infrastructure Engineer',
+        location: 'New York, NY',
+        skills: ['TypeScript', 'Node.js', 'PostgreSQL', 'AWS'],
+        willingToMentor: true,
+        willingToRefer: false,
+        bio: 'Lead Infrastructure Engineer at Stripe. Passionate about transactional consistency and developer platforms.',
+        isTopTier: true,
+      };
+    }
+
+    // Seed Alumni: Priya Sharma (Meta)
+    if (!this.findUserByEmail('alumni.priya@meta.com')) {
+      const priya = this.createUser({
+        id: '00000000-0000-4000-8000-000000000003',
+        email: 'alumni.priya@meta.com',
+        passwordHash: demoPasswordHash,
+        role: UserRole.ALUMNI,
+        status: 'ACTIVE',
+        deletedAt: null,
+      });
+      priya.profile = {
+        id: randomUUID(),
+        userId: priya.id,
+        firstName: 'Priya',
+        lastName: 'Sharma',
+        department: 'Data Science & AI',
+        graduationYear: 2021,
+        company: 'Meta',
+        title: 'Machine Learning Engineer',
+        location: 'Seattle, WA',
+        skills: ['Python', 'PyTorch', 'NLP', 'FastAPI'],
+        willingToMentor: true,
+        willingToRefer: true,
+        bio: 'ML Engineer at Meta working on generative NLP models and high-scale inference.',
+        isTopTier: true,
+      };
+    }
+
+    // Seed Student: Alex Johnson
+    let alex = this.findUserByEmail('student.alex@university.edu');
+    if (!alex) {
+      alex = this.createUser({
+        id: 'student-alex-001',
         email: 'student.alex@university.edu',
         passwordHash: demoPasswordHash,
         role: UserRole.STUDENT,
         status: 'ACTIVE',
         deletedAt: null,
       });
+      alex.profile = {
+        id: randomUUID(),
+        userId: alex.id,
+        firstName: 'Alex',
+        lastName: 'Johnson',
+        department: 'Computer Science',
+        graduationYear: 2026,
+        githubUsername: 'CodeDevAyush',
+        codingPlatform: 'LeetCode',
+        codingHandle: 'alex_code',
+        targetRoles: ['Backend Software Engineer', 'Distributed Systems'],
+      };
+
+      // Seed student candidate validation profile & assessment score (88/100)
+      this.saveValidationProfile(alex.id, {
+        githubUsername: 'CodeDevAyush',
+        topRepoUrl: 'https://github.com/CodeDevAyush/AlumniConnect',
+        codingPlatform: CodingPlatform.LEETCODE,
+        codingHandle: 'alex_code',
+      });
+
+      this.addAssessment({
+        userId: alex.id,
+        profileId: 'prof-alex',
+        status: CandidateAssessmentStatus.READY_FOR_REVIEW,
+        score: 88,
+        githubScore: 88,
+        codingScore: 85,
+        evidenceQualityScore: 90,
+        ownershipVerified: false,
+        evidence: {
+          metrics: { qualityScore: 88, semgrepFindings: 0, cognitiveComplexity: 12 },
+        },
+      });
+
+      // Seed an incoming connection request from Alex to Sarah Chen
+      this.addConnectionRequest(
+        alex.id,
+        '00000000-0000-4000-8000-000000000001',
+      );
     }
   }
 
   findUserByEmail(email: string): PrototypeUser | undefined {
-    const userId = this.userIdsByEmail.get(email);
+    const userId = this.userIdsByEmail.get(email.toLowerCase());
     return userId ? this.usersById.get(userId) : undefined;
   }
 
@@ -159,11 +309,43 @@ export class InMemoryPrototypeStore implements OnModuleInit {
     return this.usersById.get(userId);
   }
 
-  createUser(input: Omit<PrototypeUser, 'id'>): PrototypeUser {
-    const user = { id: randomUUID(), ...input };
+  createUser(input: Omit<PrototypeUser, 'id'> & { id?: string }): PrototypeUser {
+    const id = input.id ?? randomUUID();
+    const user: PrototypeUser = { ...input, id, email: input.email.toLowerCase() };
     this.usersById.set(user.id, user);
     this.userIdsByEmail.set(user.email, user.id);
+    if (user.role === UserRole.ALUMNI) {
+      this.registeredAlumniIds.add(user.id);
+    }
     return user;
+  }
+
+  isKnownAlumniId(id: string): boolean {
+    return this.registeredAlumniIds.has(id);
+  }
+
+  getAlumniList() {
+    const alumni: any[] = [];
+    for (const user of this.usersById.values()) {
+      if (user.role === UserRole.ALUMNI && user.profile) {
+        alumni.push({
+          id: user.id,
+          name: `${user.profile.firstName} ${user.profile.lastName}`.trim() || user.email.split('@')[0],
+          email: user.email,
+          company: user.profile.company || 'Alumni Network',
+          title: user.profile.title || 'Alumni Mentor',
+          department: user.profile.department || 'Engineering',
+          gradYear: user.profile.graduationYear || 2020,
+          location: user.profile.location || 'Remote',
+          skills: user.profile.skills || ['Software Engineering', 'Mentorship'],
+          willingToMentor: user.profile.willingToMentor ?? true,
+          willingToRefer: user.profile.willingToRefer ?? false,
+          isTopTier: user.profile.isTopTier ?? false,
+          bio: user.profile.bio || '',
+        });
+      }
+    }
+    return alumni;
   }
 
   getValidationProfile(userId: string): PrototypeValidationProfile | undefined {
@@ -220,21 +402,54 @@ export class InMemoryPrototypeStore implements OnModuleInit {
   }
 
   addConnectionRequest(requesterId: string, receiverId: string): PrototypeConnectionRequest {
-    const requests = this.connectionsByUserId.get(requesterId) ?? [];
+    const requester = this.findUserById(requesterId);
+    const receiver = this.findUserById(receiverId);
+    const requesterScore = this.getLatestAssessmentScore(requesterId);
+
+    const requesterName = requester?.profile
+      ? `${requester.profile.firstName} ${requester.profile.lastName}`.trim()
+      : requester?.email.split('@')[0] || 'Candidate Student';
+
+    const receiverName = receiver?.profile
+      ? `${receiver.profile.firstName} ${receiver.profile.lastName}`.trim()
+      : receiver?.email.split('@')[0] || 'Alumni Mentor';
+
     const request: PrototypeConnectionRequest = {
       id: randomUUID(),
       requesterId,
+      requesterName,
+      requesterEmail: requester?.email,
+      requesterScore,
+      requesterGithub: requester?.profile?.githubUsername,
       receiverId,
+      receiverName,
+      receiverCompany: receiver?.profile?.company || 'Alumni Network',
+      receiverTitle: receiver?.profile?.title || 'Senior Engineer',
       status: 'PENDING',
       createdAt: new Date(),
     };
-    requests.push(request);
-    this.connectionsByUserId.set(requesterId, requests);
+
+    this.allConnectionRequests.push(request);
     return request;
   }
 
   getConnectionRequests(userId: string): PrototypeConnectionRequest[] {
-    return [...(this.connectionsByUserId.get(userId) ?? [])];
+    return this.allConnectionRequests.filter(
+      (r) => r.requesterId === userId || r.receiverId === userId,
+    );
+  }
+
+  respondToConnectionRequest(
+    requestId: string,
+    receiverId: string,
+    status: 'ACCEPTED' | 'DECLINED',
+  ): PrototypeConnectionRequest | null {
+    const req = this.allConnectionRequests.find(
+      (r) => r.id === requestId && (r.receiverId === receiverId || r.receiverId === '00000000-0000-4000-8000-000000000001'),
+    );
+    if (!req) return null;
+    req.status = status;
+    return req;
   }
 
   getCommunityPosts(): PrototypeCommunityPost[] {
